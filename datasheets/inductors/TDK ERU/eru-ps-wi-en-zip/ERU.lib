@@ -1,0 +1,1338 @@
+******************************************************************
+*
+*		TDK Electronics AG
+*		Magnetics Business Group
+*		Development and Application - Simulation
+*		89520 Heidenheim
+*		In den Seewiesen 26
+*
+*		Stefan Schefler
+*		MAG D&A SIM
+*		Tel  +49 (0) 7321 32 6446
+*		Email stefan.schefler@tdk-electronics.tdk.com
+*
+*
+******************************************************************
+* Bitte lesen Sie die Hinweise in der Datei "Liesmich.txt" .
+* Please read the hints in "Readme.txt" .
+******************************************************************
+*
+* 
+* Library ERU.lib 
+* Version 1.25 (Mon May  6 13:25:26 2024)
+* 
+******************************************************************
+* SPICE-Simulationsdaten für ERU Drossel, Schraubenförmig gewickelt
+* SPICE simulation data for ERU choke, helically wound
+* 	ERU
+*
+******************************************************************
+*
+******************************************************************
+* Library für/for PSPICE (Cadence)
+* 
+* Libraries für weitere Spice-Versionen sind verfügbar (ANSYS,
+* HSPICE, LTspice)
+*
+* Libraries for further Simulation Programs available (ANSYS,
+* HSPICE, LTspice)
+*	
+******************************************************************
+*
+.subckt ERU_BASE1 A1 A2  PARAMS:  
++	ls11_a=1.06e-06 lsb11_a=2.28e-08 rlsb11_a=0.0177 lsc11_a=2.96e-08 
++	rlsc11_a=0.00501 rls11_a=0.00159 cpb11_a=8.64e-12 rcpb11_a=756 
++	cp11_a=5.4e-12 rcp11_a=23.1 rp11_a=567 
+ls1_b	A1 101 	{ls11_a}  
+lsb1_b	101 102 	{lsb11_a}  
+rlsb1_b	101 102 	{rlsb11_a}  
+lsc1_b	102 103 	{lsc11_a}  
+rlsc1_b	102 103 	{rlsc11_a}  
+rls1_b	103 A2 	{rls11_a}  
+cpb1_b	A1 111 	{cpb11_a}  
+rcpb1_b	111 A2 	{rcpb11_a}  
+cp1_b	A1 121 	{cp11_a}  
+rcp1_b	121 A2 	{rcp11_a}  
+rp1_b	A1 A2 	{rp11_a}  
+.ENDS
+
+.subckt ERU_BASE2 A1 A2  PARAMS:  
++	ls1_a=1.47e-06 rs1_a=0.000476 cp1_a=9.9e-13 rcp1_a=7.58e-6 
++	cpb1_a=4.01e-12 rcpb1_a=5.37e-6 rp1_a=568 lwira1_a=3.85e-08 
++	lwa1_a=3.83e-06 rwa1_a=0.65 lwb1_a=4.2e-07 rwb1_a=5.9 
++	lwc1_a=7.25e-08 rwc1_a=9.72 ka1_a=0.9999 
+ls_b	A1 31 	{ls1_a}  
+rs_b	31 A2 	{rs1_a}  
+cp_b	A1 121 	{cp1_a}  
+rcp_b	121 A2 	{rcp1_a}  
+cpb_b	A1 131 	{cpb1_a}  
+rcpb_b	131 A2 	{rcpb1_a}  
+rp_b	A1 A2 	{rp1_a}  
+lwira_b	900 0 	{lwira1_a}  
+lwa_b	900 901 	{lwa1_a}  
+rwa_b	901 0 	{rwa1_a}  
+lwb_b	900 902 	{lwb1_a}  
+rwb_b	902 0 	{rwb1_a}  
+lwc_b	900 903 	{lwc1_a}  
+rwc_b	903 0 	{rwc1_a}  
+ka_b	ls_b lwira_b	{ka1_a}
+.ENDS
+
+.subckt ERU_BASE3 A1 A2  PARAMS:  
++	ls11_a=1.81e-06 lsb11_a=2.47e-08 rlsb11_a=0.00446 lsc11_a=6.73e-08 
++	rlsc11_a=0.694 lsd11_a=4.38e-07 rlsd11_a=27 rls11_a=0.000617 
++	cpb11_a=3.37e-08 rcpb11_a=4.97e+04 cp11_a=5.93e-12 rcp11_a=1e-05 
++	rp11_a=924 
+ls1_b	A1 101 	{ls11_a}  
+lsb1_b	101 102 	{lsb11_a}  
+rlsb1_b	101 102 	{rlsb11_a}  
+lsc1_b	102 103 	{lsc11_a}  
+rlsc1_b	102 103 	{rlsc11_a}  
+lsd1_b	103 104 	{lsd11_a}  
+rlsd1_b	103 104 	{rlsd11_a}  
+rls1_b	104 A2 	{rls11_a}  
+cpb1_b	A1 111 	{cpb11_a}  
+rcpb1_b	111 A2 	{rcpb11_a}  
+cp1_b	A1 121 	{cp11_a}  
+rcp1_b	121 A2 	{rcp11_a}  
+rp1_b	A1 A2 	{rp11_a}  
+.ENDS
+
+*
+* B82559A0112A013 ERU13 choke, helically wound (1.1 uH)
+*
+.subckt B82559A0112A013 A1 A2   PARAMS:  
++	ls11=1.06e-06 lsb11=2.28e-08 rlsb11=0.0177 lsc11=2.96e-08 
++	rlsc11=0.00501 rls11=0.00159 cpb11=8.64e-12 rcpb11=756 
++	cp11=5.4e-12 rcp11=23.1 rp11=567 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0142A013 ERU13 choke, helically wound (1.4 uH)
+*
+.subckt B82559A0142A013 A1 A2   PARAMS:  
++	ls11=1.35e-06 lsb11=7.04e-08 rlsb11=0.0692 lsc11=1.01e-07 
++	rlsc11=0.0163 rls11=0.00139 cpb11=3.1e-12 rcpb11=1.27e+03 
++	cp11=6.68e-12 rcp11=4.69e-43 rp11=726 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0153A024 ERU24 choke, helically wound (15 uH)
+*
+.subckt B82559A0153A024 A1 A2   PARAMS:  
++	ls11=1.41e-05 lsb11=9.02e-07 rlsb11=0.274 lsc11=8.34e-07 
++	rlsc11=0.0253 rls11=0.00276 cpb11=6.5e-09 rcpb11=4.8e+03 
++	cp11=1.17e-11 rcp11=9.93 rp11=2.22e+10 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0203A020 ERU20 choke, helically wound (20 uH)
+*
+.subckt B82559A0203A020 A1 A2   PARAMS:  
++	ls11=1.87e-05 lsb11=1.82e-06 rlsb11=1.04 lsc11=1.65e-06 
++	rlsc11=0.0545 rls11=0.00529 cpb11=3.41e-10 rcpb11=4.65e+03 
++	cp11=1.03e-11 rcp11=1.09 rp11=9.63e+08 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0203A024 ERU24 choke, helically wound (20 uH)
+*
+.subckt B82559A0203A024 A1 A2   PARAMS:  
++	ls11=1.86e-05 lsb11=1.3e-06 rlsb11=0.0338 lsc11=1.5e-06 
++	rlsc11=0.44 rls11=0.00334 cpb11=9.27e-12 rcpb11=14.9 
++	cp11=5.54e-10 rcp11=5.69e+03 rp11=5.07e+10 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0222A013 ERU13 choke, helically wound (2.2 uH)
+*
+.subckt B82559A0222A013 A1 A2   PARAMS:  
++	ls11=2.06e-06 lsb11=4.48e-08 rlsb11=0.0596 lsc11=7.69e-08 
++	rlsc11=0.0115 rls11=0.00309 cpb11=6.79e-11 rcpb11=1.9e+03 
++	cp11=7.27e-12 rcp11=83.1 rp11=1.85e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0242A013 ERU13 choke, helically wound (2.4 uH)
+*
+.subckt B82559A0242A013 A1 A2   PARAMS:  
++	ls11=2.32e-06 lsb11=1.21e-07 rlsb11=0.137 lsc11=1.04e-07 
++	rlsc11=0.0148 rls11=0.0027 cpb11=3.29e-10 rcpb11=1.15e+03 
++	cp11=6.52e-12 rcp11=63 rp11=8.21e+08 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0293A020 ERU20 choke, helically wound (29 uH)
+*
+.subckt B82559A0293A020 A1 A2   PARAMS:  
++	ls11=2.73e-05 lsb11=2.78e-06 rlsb11=1.6 lsc11=2.3e-06 
++	rlsc11=0.0744 rls11=0.00623 cpb11=2.3e-07 rcpb11=6.74e+03 
++	cp11=1.43e-11 rcp11=0.104 rp11=1.39e+09 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0302A013 ERU13 choke, helically wound (3 uH)
+*
+.subckt B82559A0302A013 A1 A2   PARAMS:  
++	ls11=2.87e-06 lsb11=9.75e-08 rlsb11=0.108 lsc11=1.37e-07 
++	rlsc11=0.0146 rls11=0.00407 cpb11=1.88e-12 rcpb11=2.3e+03 
++	cp11=7.77e-12 rcp11=5.15e-10 rp11=1.43e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0303A024 ERU24 choke, helically wound (30 uH)
+*
+.subckt B82559A0303A024 A1 A2   PARAMS:  
++	ls11=2.88e-05 lsb11=1.61e-06 rlsb11=0.0476 lsc11=1.75e-06 
++	rlsc11=0.65 rls11=0.00363 cpb11=9.96e-12 rcpb11=6.4 
++	cp11=5.11e-12 rcp11=7.61e+03 rp11=1.47e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0353A020 ERU20 choke, helically wound (35 uH)
+*
+.subckt B82559A0353A020 A1 A2   PARAMS:  
++	ls11=3.25e-05 lsb11=2.7e-06 rlsb11=1.92 lsc11=2.55e-06 
++	rlsc11=0.0826 rls11=0.00614 cpb11=1.75e-12 rcpb11=1.08e+04 
++	cp11=1.05e-11 rcp11=6.56 rp11=1.28e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0392A013 ERU13 choke, helically wound (3.9 uH)
+*
+.subckt B82559A0392A013 A1 A2   PARAMS:  
++	ls11=3.72e-06 lsb11=1.49e-07 rlsb11=0.219 lsc11=1.93e-07 
++	rlsc11=0.0271 rls11=0.00467 cpb11=5.83e-12 rcpb11=2.47e-29 
++	cp11=1.15e-12 rcp11=3.07e+03 rp11=1.76e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0501A013 ERU13 choke, helically wound (500 nH)
+*
+.subckt B82559A0501A013 A1 A2   PARAMS:  
++	ls11=4.57e-07 lsb11=1.18e-08 rlsb11=0.0181 lsc11=2.83e-08 
++	rlsc11=0.00537 rls11=0.000754 cpb11=8.98e-10 rcpb11=232 
++	cp11=1.08e-11 rcp11=119 rp11=1.52e+10 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A0951A013 ERU13 choke, helically wound (950 nH)
+*
+.subckt B82559A0951A013 A1 A2   PARAMS:  
++	ls11=9.2e-07 lsb11=5.02e-08 rlsb11=0.00891 lsc11=2.59e-08 
++	rlsc11=0.0275 rls11=0.00111 cpb11=2.37e-10 rcpb11=994 
++	cp11=7.59e-12 rcp11=111 rp11=858 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A1042A025 ERU25 choke, helically wound (0.4 uH)
+*
+.subckt B82559A1042A025 A1 A2   PARAMS:  
++	ls11=3.88e-07 lsb11=1.18e-08 rlsb11=0.00637 lsc11=2.4e-08 
++	rlsc11=0.000653 rls11=0.000186 cpb11=4.05e-11 rcpb11=45.9 
++	cp11=1.08e-09 rcp11=60.7 rp11=1.64e+12 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A2102A020 ERU20 choke, helically wound (1 uH)
+*
+.subckt B82559A2102A020 A1 A2   PARAMS:  
++	ls11=9.46e-07 lsb11=4.48e-08 rlsb11=0.00469 lsc11=1.62e-08 
++	rlsc11=0.0131 rls11=0.000535 cpb11=1.38e-11 rcpb11=51.3 
++	cp11=1.6e-10 rcp11=220 rp11=987 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A2102A024 ERU24 choke, helically wound (1 uH)
+*
+.subckt B82559A2102A024 A1 A2   PARAMS:  
++	ls11=9.67e-07 lsb11=2.68e-08 rlsb11=0.0129 lsc11=7.02e-08 
++	rlsc11=0.0024 rls11=0.000423 cpb11=1.65e-10 rcpb11=271 
++	cp11=1.17e-11 rcp11=122 rp11=825 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A2122A025 ERU25 choke, helically wound (1.2 uH)
+*
+.subckt B82559A2122A025 A1 A2   PARAMS:  
++	ls11=1.17e-06 lsb11=4.54e-08 rlsb11=0.0145 lsc11=1.2e-07 
++	rlsc11=0.00176 rls11=0.000352 cpb11=2.13e-11 rcpb11=23.8 
++	cp11=1.29e-10 rcp11=221 rp11=973 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A3152A020 ERU20 choke, helically wound (1.5 uH)
+*
+.subckt B82559A3152A020 A1 A2   PARAMS:  
++	ls11=1.45e-06 lsb11=1.1e-07 rlsb11=0.0115 lsc11=4.31e-08 
++	rlsc11=0.0388 rls11=0.000776 cpb11=1.06e-11 rcpb11=25.2 
++	cp11=6.89e-11 rcp11=435 rp11=1.6e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A3152A024 ERU24 choke, helically wound (1.5 uH)
+*
+.subckt B82559A3152A024 A1 A2   PARAMS:  
++	ls11=1.42e-06 lsb11=3.96e-08 rlsb11=0.0251 lsc11=8.39e-08 
++	rlsc11=0.00537 rls11=0.000619 cpb11=5.25e-11 rcpb11=593 
++	cp11=8.23e-12 rcp11=67.4 rp11=1.41e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A3232A025 ERU25 choke, helically wound (2.3 uH)
+*
+.subckt B82559A3232A025 A1 A2   PARAMS:  
++	ls11=2.16e-06 lsb11=1.15e-07 rlsb11=0.0333 lsc11=2.19e-07 
++	rlsc11=0.00402 rls11=0.000504 cpb11=4.92e-11 rcpb11=555 
++	cp11=2.34e-11 rcp11=7.17 rp11=1.46e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A3292A025 ERU25 choke, helically wound (2.9 uH)
+*
+.subckt B82559A3292A025 A1 A2   PARAMS:  
++	ls11=2.72e-06 lsb11=2.34e-07 rlsb11=0.00362 lsc11=1.17e-07 
++	rlsc11=0.0431 rls11=0.00094 cpb11=5.49e-11 rcpb11=513 
++	cp11=2.47e-11 rcp11=6.06 rp11=2.15e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A4222A020 ERU20 choke, helically wound (2.2 uH)
+*
+.subckt B82559A4222A020 A1 A2   PARAMS:  
++	ls11=2.02e-06 lsb11=1.44e-07 rlsb11=0.0793 lsc11=2.35e-07 
++	rlsc11=0.0151 rls11=0.000984 cpb11=1.89e-11 rcpb11=992 
++	cp11=1.09e-11 rcp11=5.76 rp11=1.09e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A4222A024 ERU24 choke, helically wound (2.2 uH)
+*
+.subckt B82559A4222A024 A1 A2   PARAMS:  
++	ls11=2.14e-06 lsb11=2.09e-07 rlsb11=0.00765 lsc11=1.02e-07 
++	rlsc11=0.0469 rls11=0.000816 cpb11=2.64e-11 rcpb11=1.11e+03 
++	cp11=9.11e-12 rcp11=49.6 rp11=1.56e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A4322A033 ERU33 choke, helically wound (3.2 uH)
+*
+.subckt B82559A4322A033 A1 A2   PARAMS:  
++	ls11=3.11e-06 lsb11=1.8e-07 rlsb11=0.0081 lsc11=5.52e-08 
++	rlsc11=0.0419 rls11=0.000843 cpb11=7.99e-12 rcpb11=384 
++	cp11=1.22e-10 rcp11=863 rp11=4.78e+08 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A4352A033 ERU33 choke, helically wound (3.5 uH)
+*
+.subckt B82559A4352A033 A1 A2   PARAMS:  
++	ls11=3.46e-06 lsb11=1.79e-07 rlsb11=0.00868 lsc11=5.53e-08 
++	rlsc11=0.0442 rls11=0.000842 cpb11=1.19e-10 rcpb11=735 
++	cp11=7.38e-12 rcp11=281 rp11=3.36e+08 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A4432A025 ERU25 choke, helically wound (4.3 uH)
+*
+.subckt B82559A4432A025 A1 A2   PARAMS:  
++	ls11=4.09e-06 lsb11=1.22e-07 rlsb11=0.0794 lsc11=1.57e-07 
++	rlsc11=0.0186 rls11=0.00122 cpb11=4.24e-11 rcpb11=761 
++	cp11=2.25e-11 rcp11=3.45 rp11=3.2e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A4472A020 ERU20 choke, helically wound (4.7 uH)
+*
+.subckt B82559A4472A020 A1 A2   PARAMS:  
++	ls11=4.44e-06 lsb11=2.14e-07 rlsb11=0.0106 lsc11=1.44e-07 
++	rlsc11=0.0977 rls11=0.00197 cpb11=3.75e-11 rcpb11=815 
++	cp11=1.08e-11 rcp11=28.6 rp11=3.71e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A5103A033 ERU33 choke, helically wound (10 uH)
+*
+.subckt B82559A5103A033 A1 A2   PARAMS:  
++	ls11=9.86e-06 lsb11=8.7e-08 rlsb11=0.0924 lsc11=2.78e-07 
++	rlsc11=0.0142 rls11=0.00118 cpb11=6.06e-11 rcpb11=831 
++	cp11=9.03e-12 rcp11=7.61 rp11=1.19e+07 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A5332A020 ERU20 choke, helically wound (3.3 uH)
+*
+.subckt B82559A5332A020 A1 A2   PARAMS:  
++	ls11=3.06e-06 lsb11=1.85e-07 rlsb11=0.136 lsc11=3.87e-07 
++	rlsc11=0.0374 rls11=0.00123 cpb11=1.8e-11 rcpb11=1.19e+03 
++	cp11=9.99e-12 rcp11=8.48 rp11=1.94e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A5332A024 ERU24 choke, helically wound (3.3 uH)
+*
+.subckt B82559A5332A024 A1 A2   PARAMS:  
++	ls11=3.16e-06 lsb11=2.8e-07 rlsb11=0.00961 lsc11=1.39e-07 
++	rlsc11=0.0648 rls11=0.000989 cpb11=2.05e-11 rcpb11=1.46e+03 
++	cp11=8.31e-12 rcp11=28.1 rp11=2.7e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A5472A033 ERU33 choke, helically wound (4.7 uH)
+*
+.subckt B82559A5472A033 A1 A2   PARAMS:  
++	ls11=4.68e-06 lsb11=8.02e-08 rlsb11=0.0667 lsc11=2.69e-07 
++	rlsc11=0.0124 rls11=0.0012 cpb11=7.28e-11 rcpb11=1.06e+03 
++	cp11=8.83e-12 rcp11=64.1 rp11=6.99e+08 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A5602A033 ERU33 choke, helically wound (6 uH)
+*
+.subckt B82559A5602A033 A1 A2   PARAMS:  
++	ls11=5.98e-06 lsb11=2.74e-07 rlsb11=0.0126 lsc11=8.45e-08 
++	rlsc11=0.0716 rls11=0.00119 cpb11=1.01e-11 rcpb11=47.3 
++	cp11=6.86e-11 rcp11=933 rp11=5.25e+08 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A5612A025 ERU25 choke, helically wound (6.1 uH)
+*
+.subckt B82559A5612A025 A1 A2   PARAMS:  
++	ls11=5.46e-06 lsb11=3.56e-07 rlsb11=0.155 lsc11=4.26e-07 
++	rlsc11=0.014 rls11=0.0015 cpb11=1.96e-11 rcpb11=1.41e+03 
++	cp11=2.63e-11 rcp11=1.03e-43 rp11=3.34e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A5682A020 ERU20 choke, helically wound (6.8 uH)
+*
+.subckt B82559A5682A020 A1 A2   PARAMS:  
++	ls11=6.3e-06 lsb11=2.84e-07 rlsb11=0.0133 lsc11=2.54e-07 
++	rlsc11=0.169 rls11=0.00247 cpb11=1.29e-11 rcpb11=0.144 
++	cp11=2.44e-11 rcp11=1.24e+03 rp11=4.64e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A5682A033 ERU33 choke, helically wound (6.8 uH)
+*
+.subckt B82559A5682A033 A1 A2   PARAMS:  
++	ls11=6.72e-06 lsb11=2.67e-07 rlsb11=0.0125 lsc11=8.31e-08 
++	rlsc11=0.0708 rls11=0.00119 cpb11=6.51e-11 rcpb11=952 
++	cp11=9.56e-12 rcp11=66.4 rp11=3.95e+08 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A6472A024 ERU24 choke, helically wound (4.7 uH)
+*
+.subckt B82559A6472A024 A1 A2   PARAMS:  
++	ls11=4.88e-06 lsb11=2.56e-07 rlsb11=0.104 lsc11=4.41e-07 
++	rlsc11=0.0154 rls11=0.00119 cpb11=8.15e-12 rcpb11=30.2 
++	cp11=1.44e-11 rcp11=2.17e+03 rp11=3.18e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A6792A025 ERU25 choke, helically wound (7.9 uH)
+*
+.subckt B82559A6792A025 A1 A2   PARAMS:  
++	ls11=7.1e-06 lsb11=5.69e-07 rlsb11=0.19 lsc11=5.72e-07 
++	rlsc11=0.0145 rls11=0.00191 cpb11=2.84e-11 rcpb11=0.947 
++	cp11=1.54e-08 rcp11=2.39e+03 rp11=1.57e+10 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A7103A020 ERU20 choke, helically wound (10 uH)
+*
+.subckt B82559A7103A020 A1 A2   PARAMS:  
++	ls11=9.59e-06 lsb11=6.24e-07 rlsb11=0.018 lsc11=5.8e-07 
++	rlsc11=0.273 rls11=0.00339 cpb11=1.3e-11 rcpb11=5 
++	cp11=5.81e-10 rcp11=3.45e+03 rp11=2.19e+05 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A7103A025 ERU25 choke, helically wound (10 uH)
+*
+.subckt B82559A7103A025 A1 A2   PARAMS:  
++	ls11=8.85e-06 lsb11=8.87e-07 rlsb11=0.351 lsc11=9.83e-07 
++	rlsc11=0.0196 rls11=0.00219 cpb11=1.15e-11 rcpb11=3.33e+03 
++	cp11=2.73e-11 rcp11=1.95e-38 rp11=4.96e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A7153A025 ERU25 choke, helically wound (15 uH)
+*
+.subckt B82559A7153A025 A1 A2   PARAMS:  
++	ls11=1.4e-05 lsb11=7.1e-07 rlsb11=0.0251 lsc11=7.79e-07 
++	rlsc11=0.342 rls11=0.0022 cpb11=1.39e-11 rcpb11=3.57e+03 
++	cp11=2.45e-11 rcp11=3.11e-40 rp11=9.05e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A7682A024 ERU24 choke, helically wound (6.8 uH)
+*
+.subckt B82559A7682A024 A1 A2   PARAMS:  
++	ls11=6.16e-06 lsb11=5.54e-07 rlsb11=0.0215 lsc11=3.21e-07 
++	rlsc11=0.137 rls11=0.00138 cpb11=1.11e-11 rcpb11=3.03e+03 
++	cp11=8e-12 rcp11=21.8 rp11=3.9e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A9103A024 ERU24 choke, helically wound (10 uH)
+*
+.subckt B82559A9103A024 A1 A2   PARAMS:  
++	ls11=9.79e-06 lsb11=9e-07 rlsb11=0.038 lsc11=5.35e-07 
++	rlsc11=0.245 rls11=0.00176 cpb11=8.15e-12 rcpb11=7.02 
++	cp11=1.46e-11 rcp11=2.51e+03 rp11=6.94e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A9153A020 ERU20 choke, helically wound (15 uH)
+*
+.subckt B82559A9153A020 A1 A2   PARAMS:  
++	ls11=1.47e-05 lsb11=1.11e-06 rlsb11=0.0414 lsc11=1.06e-06 
++	rlsc11=0.737 rls11=0.00446 cpb11=6.35e-12 rcpb11=3.07e+03 
++	cp11=1.18e-11 rcp11=0.739 rp11=7.14e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559A9203A025 ERU25 choke, helically wound (20 uH)
+*
+.subckt B82559A9203A025 A1 A2   PARAMS:  
++	ls11=1.71e-05 lsb11=1.08e-06 rlsb11=0.0397 lsc11=1.46e-06 
++	rlsc11=0.672 rls11=0.0029 cpb11=1.06e-11 rcpb11=4.72e+03 
++	cp11=2.59e-11 rcp11=1.48e-42 rp11=8.56e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B0153A016 ERU16 choke, helically wound (15 uH)
+*
+.subckt B82559B0153A016 A1 A2   PARAMS:  
++	ls11=1.46e-05 lsb11=3.52e-07 rlsb11=0.367 lsc11=6.13e-07 
++	rlsc11=0.0523 rls11=0.00999 cpb11=5.5e-12 rcpb11=7.78e-41 
++	cp11=4.03e-12 rcp11=8.9e+03 rp11=1.34e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B0203A016 ERU16 choke, helically wound (20 uH)
+*
+.subckt B82559B0203A016 A1 A2   PARAMS:  
++	ls11=1.95e-05 lsb11=9.02e-07 rlsb11=0.0663 lsc11=4.81e-07 
++	rlsc11=0.514 rls11=0.0121 cpb11=5.12e-12 rcpb11=8.06 
++	cp11=3.67e-12 rcp11=7.38e+03 rp11=1.86e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B0203A019 ERU19 choke, helically wound (20 uH)
+*
+.subckt B82559B0203A019 A1 A2   PARAMS:  
++	ls11=1.95e-05 lsb11=5.25e-07 rlsb11=0.516 lsc11=1.02e-06 
++	rlsc11=0.0746 rls11=0.0131 cpb11=6.99e-12 rcpb11=6.02 
++	cp11=3.85e-12 rcp11=7.92e+03 rp11=1.83e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B0303A016 ERU16 choke, helically wound (30 uH)
+*
+.subckt B82559B0303A016 A1 A2   PARAMS:  
++	ls11=2.94e-05 lsb11=1.22e-06 rlsb11=0.0717 lsc11=6.95e-07 
++	rlsc11=0.435 rls11=0.0149 cpb11=1.28e-09 rcpb11=1.27e+04 
++	cp11=5.53e-12 rcp11=15.9 rp11=1.35e+08 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B0303A019 ERU19 choke, helically wound (30 uH)
+*
+.subckt B82559B0303A019 A1 A2   PARAMS:  
++	ls11=2.92e-05 lsb11=8.53e-07 rlsb11=0.994 lsc11=1.58e-06 
++	rlsc11=0.12 rls11=0.0166 cpb11=2.66e-12 rcpb11=1.05e+04 
++	cp11=7.81e-12 rcp11=5.47 rp11=2.74e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B2102A016 ERU16 choke, helically wound (1 uH)
+*
+.subckt B82559B2102A016 A1 A2   PARAMS:  
++	ls11=9.97e-07 lsb11=5.21e-08 rlsb11=0.00391 lsc11=1.48e-08 
++	rlsc11=0.0146 rls11=0.000927 cpb11=1.04e-11 rcpb11=117 
++	cp11=1.26e-10 rcp11=282 rp11=1.84e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B2102A019 ERU19 choke, helically wound (1 uH)
+*
+.subckt B82559B2102A019 A1 A2   PARAMS:  
++	ls11=9.69e-07 lsb11=5.35e-08 rlsb11=0.00343 lsc11=1.95e-08 
++	rlsc11=0.0158 rls11=0.000913 cpb11=8.08e-12 rcpb11=159 
++	cp11=1.09e-10 rcp11=311 rp11=1.3e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B2102A027 ERU27 choke, helically wound (1 uH)
+*
+.subckt B82559B2102A027 A1 A2   PARAMS:  
++	ls11=9.97e-07 lsb11=6.62e-08 rlsb11=0.00223 lsc11=2.33e-08 
++	rlsc11=0.0118 rls11=0.000466 cpb11=1.14e-11 rcpb11=98.3 
++	cp11=1.16e-10 rcp11=289 rp11=1.17e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B2152A027 ERU27 choke, helically wound (1.5 uH)
+*
+.subckt B82559B2152A027 A1 A2   PARAMS:  
++	ls11=1.48e-06 lsb11=2.71e-08 rlsb11=0.0131 lsc11=7.56e-08 
++	rlsc11=0.00203 rls11=0.000473 cpb11=1.16e-11 rcpb11=101 
++	cp11=1.49e-10 rcp11=244 rp11=2.13e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B3152A016 ERU16 choke, helically wound (1.5 uH)
+*
+.subckt B82559B3152A016 A1 A2   PARAMS:  
++	ls11=1.47e-06 lsb11=8.71e-08 rlsb11=0.00498 lsc11=3.45e-08 
++	rlsc11=0.0278 rls11=0.00135 cpb11=4.31e-11 rcpb11=613 
++	cp11=5.91e-12 rcp11=122 rp11=2.02e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B3152A019 ERU19 choke, helically wound (1.5 uH)
+*
+.subckt B82559B3152A019 A1 A2   PARAMS:  
++	ls11=1.46e-06 lsb11=5.19e-08 rlsb11=0.0306 lsc11=1.02e-07 
++	rlsc11=0.00494 rls11=0.00135 cpb11=2.42e-11 rcpb11=810 
++	cp11=7.4e-12 rcp11=73.2 rp11=1.33e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B3222A027 ERU27 choke, helically wound (2.2 uH)
+*
+.subckt B82559B3222A027 A1 A2   PARAMS:  
++	ls11=2.13e-06 lsb11=5.76e-08 rlsb11=0.0325 lsc11=1.4e-07 
++	rlsc11=0.0053 rls11=0.00067 cpb11=1.13e-11 rcpb11=47.5 
++	cp11=6.57e-11 rcp11=538 rp11=2.79e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B4222A016 ERU16 choke, helically wound (2.2 uH)
+*
+.subckt B82559B4222A016 A1 A2   PARAMS:  
++	ls11=2.15e-06 lsb11=6.12e-08 rlsb11=0.0455 lsc11=1.16e-07 
++	rlsc11=0.00782 rls11=0.00178 cpb11=2.84e-11 rcpb11=997 
++	cp11=6.33e-12 rcp11=59.9 rp11=2.13e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B4222A019 ERU19 choke, helically wound (2.2 uH)
+*
+.subckt B82559B4222A019 A1 A2   PARAMS:  
++	ls11=2.13e-06 lsb11=6.15e-08 rlsb11=0.0542 lsc11=1.29e-07 
++	rlsc11=0.0137 rls11=0.00175 cpb11=2.68e-11 rcpb11=1.08e+03 
++	cp11=6.8e-12 rcp11=29.8 rp11=2.15e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B4332A027 ERU27 choke, helically wound (3.3 uH)
+*
+.subckt B82559B4332A027 A1 A2   PARAMS:  
++	ls11=3.17e-06 lsb11=9.41e-08 rlsb11=0.057 lsc11=2.13e-07 
++	rlsc11=0.00936 rls11=0.000898 cpb11=1.2e-11 rcpb11=18.1 
++	cp11=4.11e-11 rcp11=796 rp11=4.5e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B5332A016 ERU16 choke, helically wound (3.3 uH)
+*
+.subckt B82559B5332A016 A1 A2   PARAMS:  
++	ls11=3.17e-06 lsb11=1.65e-07 rlsb11=0.0116 lsc11=9.99e-08 
++	rlsc11=0.0797 rls11=0.00218 cpb11=6.28e-12 rcpb11=44.5 
++	cp11=1.71e-11 rcp11=1.53e+03 rp11=4.03e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B5332A019 ERU19 choke, helically wound (3.3 uH)
+*
+.subckt B82559B5332A019 A1 A2   PARAMS:  
++	ls11=3.25e-06 lsb11=2.3e-07 rlsb11=0.0138 lsc11=1.31e-07 
++	rlsc11=0.091 rls11=0.00218 cpb11=6.22e-12 rcpb11=26.3 
++	cp11=1.9e-11 rcp11=1.3e+03 rp11=3.53e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B5472A016 ERU16 choke, helically wound (4.7 uH)
+*
+.subckt B82559B5472A016 A1 A2   PARAMS:  
++	ls11=4.58e-06 lsb11=1.6e-07 rlsb11=0.0102 lsc11=1.02e-07 
++	rlsc11=0.0732 rls11=0.00219 cpb11=2.89e-11 rcpb11=1.3e+03 
++	cp11=6.82e-12 rcp11=51.8 rp11=5.62e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B5472A019 ERU19 choke, helically wound (4.7 uH)
+*
+.subckt B82559B5472A019 A1 A2   PARAMS:  
++	ls11=4.43e-06 lsb11=1.61e-07 rlsb11=0.0996 lsc11=2.45e-07 
++	rlsc11=0.0128 rls11=0.00219 cpb11=6.97e-12 rcpb11=39.3 
++	cp11=1.83e-11 rcp11=1.56e+03 rp11=4.61e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B5472A027 ERU27 choke, helically wound (4.7 uH)
+*
+.subckt B82559B5472A027 A1 A2   PARAMS:  
++	ls11=4.57e-06 lsb11=2.84e-07 rlsb11=0.00988 lsc11=1.43e-07 
++	rlsc11=0.071 rls11=0.00137 cpb11=8.75e-12 rcpb11=12.2 
++	cp11=4.03e-11 rcp11=976 rp11=5.33e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B6682A016 ERU16 choke, helically wound (6.8 uH)
+*
+.subckt B82559B6682A016 A1 A2   PARAMS:  
++	ls11=6.54e-06 lsb11=1.28e-07 rlsb11=0.12 lsc11=2.65e-07 
++	rlsc11=0.0196 rls11=0.00606 cpb11=1.46e-11 rcpb11=2.11e+03 
++	cp11=6.04e-12 rcp11=29.8 rp11=8.2e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B6682A019 ERU19 choke, helically wound (6.8 uH)
+*
+.subckt B82559B6682A019 A1 A2   PARAMS:  
++	ls11=6.67e-06 lsb11=3.66e-07 rlsb11=0.0241 lsc11=1.57e-07 
++	rlsc11=0.128 rls11=0.00725 cpb11=7.67e-12 rcpb11=13.7 
++	cp11=9.66e-12 rcp11=2.93e+03 rp11=6.92e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B6682A027 ERU27 choke, helically wound (6.8 uH)
+*
+.subckt B82559B6682A027 A1 A2   PARAMS:  
++	ls11=6.72e-06 lsb11=4.21e-07 rlsb11=0.0185 lsc11=2.25e-07 
++	rlsc11=0.119 rls11=0.00163 cpb11=1.86e-11 rcpb11=1.87e+03 
++	cp11=8.95e-12 rcp11=17.9 rp11=7.67e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B7103A016 ERU16 choke, helically wound (10 uH)
+*
+.subckt B82559B7103A016 A1 A2   PARAMS:  
++	ls11=9.9e-06 lsb11=3.68e-07 rlsb11=0.0264 lsc11=2.11e-07 
++	rlsc11=0.185 rls11=0.00701 cpb11=8.97e-12 rcpb11=3.75e+03 
++	cp11=5.69e-12 rcp11=27.4 rp11=9.88e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B7103A019 ERU19 choke, helically wound (10 uH)
+*
+.subckt B82559B7103A019 A1 A2   PARAMS:  
++	ls11=1.02e-05 lsb11=2.25e-07 rlsb11=0.18 lsc11=4.95e-07 
++	rlsc11=0.0301 rls11=0.00846 cpb11=6.05e-12 rcpb11=4.43e+03 
++	cp11=8.6e-12 rcp11=10.3 rp11=1.06e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B7103A027 ERU27 choke, helically wound (10 uH)
+*
+.subckt B82559B7103A027 A1 A2   PARAMS:  
++	ls11=9.81e-06 lsb11=3.56e-07 rlsb11=0.162 lsc11=5.64e-07 
++	rlsc11=0.0215 rls11=0.00189 cpb11=8.68e-12 rcpb11=12.6 
++	cp11=1.83e-11 rcp11=2.01e+03 rp11=9.71e+03 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B7153A027 ERU27 choke, helically wound (15 uH)
+*
+.subckt B82559B7153A027 A1 A2   PARAMS:  
++	ls11=1.46e-05 lsb11=5.91e-07 rlsb11=0.0226 lsc11=4.12e-07 
++	rlsc11=0.19 rls11=0.00189 cpb11=1.68e-11 rcpb11=2.19e+03 
++	cp11=9.65e-12 rcp11=13.7 rp11=1.51e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82559B9153A019 ERU19 choke, helically wound (15 uH)
+*
+.subckt B82559B9153A019 A1 A2   PARAMS:  
++	ls11=1.48e-05 lsb11=3.69e-07 rlsb11=0.339 lsc11=7.23e-07 
++	rlsc11=0.0507 rls11=0.0108 cpb11=6.87e-12 rcpb11=9.78 
++	cp11=3.98e-12 rcp11=6.39e+03 rp11=1.59e+04 
+X1 A1 A2 ERU_BASE1  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} rls11_a={rls11} cpb11_a={cpb11} 
++	rcpb11_a={rcpb11} cp11_a={cp11} rcp11_a={rcp11} 
++	rp11_a={rp11} 
+.ENDS
+
+*
+* B82579A1142A033 ERU choke, helically wound (1.4 uH)
+*
+.subckt B82579A1142A033 A1 A2   PARAMS:  
++	ls1=1.47e-06 rs1=0.000476 cp1=9.9e-13 rcp1=7.58e-6 
++	cpb1=4.01e-12 rcpb1=5.37e-6 rp1=568 lwira1=3.85e-08 
++	lwa1=3.83e-06 rwa1=0.65 lwb1=4.2e-07 rwb1=5.9 
++	lwc1=7.25e-08 rwc1=9.72 ka1=0.9999 
+X1 A1 A2 ERU_BASE2  PARAMS:  ls1_a={ls1} 
++	rs1_a={rs1} cp1_a={cp1} rcp1_a={rcp1} 
++	cpb1_a={cpb1} rcpb1_a={rcpb1} rp1_a={rp1} 
++	lwira1_a={lwira1} lwa1_a={lwa1} rwa1_a={rwa1} 
++	lwb1_a={lwb1} rwb1_a={rwb1} lwc1_a={lwc1} 
++	rwc1_a={rwc1} ka1_a={ka1} 
+.ENDS
+
+*
+* B82579A1232A027 ERU27M powder core choke, helically wound (2.3 uH)
+*
+.subckt B82579A1232A027 A1 A2   PARAMS:  
++	ls11=1.81e-06 lsb11=2.47e-08 rlsb11=0.00446 lsc11=6.73e-08 
++	rlsc11=0.694 lsd11=4.38e-07 rlsd11=27 rls11=0.000617 
++	cpb11=3.37e-08 rcpb11=4.97e+04 cp11=5.93e-12 rcp11=1e-05 
++	rp11=924 
+X1 A1 A2 ERU_BASE3  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} lsd11_a={lsd11} rlsd11_a={rlsd11} 
++	rls11_a={rls11} cpb11_a={cpb11} rcpb11_a={rcpb11} 
++	cp11_a={cp11} rcp11_a={rcp11} rp11_a={rp11} 
+.ENDS
+
+*
+* B82579A1392A027 ERU27M powder core choke, helically wound (3.9 uH)
+*
+.subckt B82579A1392A027 A1 A2   PARAMS:  
++	ls11=3.24e-06 lsb11=5.46e-08 rlsb11=0.00262 lsc11=2.67e-08 
++	rlsc11=0.029 lsd11=4.49e-07 rlsd11=12.1 rls11=0.000816 
++	cpb11=1.06e-07 rcpb11=3.33e+04 cp11=5.53e-12 rcp11=1e-05 
++	rp11=1.29e+03 
+X1 A1 A2 ERU_BASE3  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} lsd11_a={lsd11} rlsd11_a={rlsd11} 
++	rls11_a={rls11} cpb11_a={cpb11} rcpb11_a={rcpb11} 
++	cp11_a={cp11} rcp11_a={rcp11} rp11_a={rp11} 
+.ENDS
+
+*
+* B82579A1462A033 ERU choke, helically wound (4.6 uH)
+*
+.subckt B82579A1462A033 A1 A2   PARAMS:  
++	ls1=4.68e-06 rs1=0.000802 cp1=8.62e-12 rcp1=5.6e-6 
++	cpb1=2.2e-19 rcpb1=4.1e+04 rp1=1.86e+03 lwira1=4.05e-08 
++	lwa1=2.21e-06 rwa1=0.175 lwb1=1.33e-06 rwb1=10.1 
++	lwc1=8.74e-08 rwc1=7.97 ka1=0.9999 
+X1 A1 A2 ERU_BASE2  PARAMS:  ls1_a={ls1} 
++	rs1_a={rs1} cp1_a={cp1} rcp1_a={rcp1} 
++	cpb1_a={cpb1} rcpb1_a={rcpb1} rp1_a={rp1} 
++	lwira1_a={lwira1} lwa1_a={lwa1} rwa1_a={rwa1} 
++	lwb1_a={lwb1} rwb1_a={rwb1} lwc1_a={lwc1} 
++	rwc1_a={rwc1} ka1_a={ka1} 
+.ENDS
+
+*
+* B82579A1622A027 ERU27M powder core choke, helically wound (6.2 uH)
+*
+.subckt B82579A1622A027 A1 A2   PARAMS:  
++	ls11=5.42e-06 lsb11=8.05e-08 rlsb11=0.00474 lsc11=4.2e-08 
++	rlsc11=0.0354 lsd11=6.65e-07 rlsd11=15.5 rls11=0.00126 
++	cpb11=5.63e-08 rcpb11=4.53e+04 cp11=7.21e-12 rcp11=1e-05 
++	rp11=1.88e+03 
+X1 A1 A2 ERU_BASE3  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} lsd11_a={lsd11} rlsd11_a={rlsd11} 
++	rls11_a={rls11} cpb11_a={cpb11} rcpb11_a={rcpb11} 
++	cp11_a={cp11} rcp11_a={rcp11} rp11_a={rp11} 
+.ENDS
+
+*
+* B82579A1722A033 ERU choke, helically wound (7.2 uH)
+*
+.subckt B82579A1722A033 A1 A2   PARAMS:  
++	ls1=7.5e-06 rs1=0.00115 cp1=1.17e-16 rcp1=1.56 
++	cpb1=9.46e-12 rcpb1=1.31e-6 rp1=2.42e+03 lwira1=3.03e-08 
++	lwa1=1.63e-06 rwa1=0.0972 lwb1=3.36e-06 rwb1=5.19 
++	lwc1=9.9e-08 rwc1=4.2 ka1=0.9999 
+X1 A1 A2 ERU_BASE2  PARAMS:  ls1_a={ls1} 
++	rs1_a={rs1} cp1_a={cp1} rcp1_a={rcp1} 
++	cpb1_a={cpb1} rcpb1_a={rcpb1} rp1_a={rp1} 
++	lwira1_a={lwira1} lwa1_a={lwa1} rwa1_a={rwa1} 
++	lwb1_a={lwb1} rwb1_a={rwb1} lwc1_a={lwc1} 
++	rwc1_a={rwc1} ka1_a={ka1} 
+.ENDS
+
+*
+* B82579A1852A027 ERU27M powder core choke, helically wound (8.5 uH)
+*
+.subckt B82579A1852A027 A1 A2   PARAMS:  
++	ls11=7.63e-06 lsb11=1.21e-07 rlsb11=0.00527 lsc11=6.69e-08 
++	rlsc11=0.0421 lsd11=8.81e-07 rlsd11=17.9 rls11=0.0015 
++	cpb11=2.59e-08 rcpb11=1.06e+05 cp11=5.98e-12 rcp11=1e-05 
++	rp11=2.42e+03 
+X1 A1 A2 ERU_BASE3  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} lsd11_a={lsd11} rlsd11_a={rlsd11} 
++	rls11_a={rls11} cpb11_a={cpb11} rcpb11_a={rcpb11} 
++	cp11_a={cp11} rcp11_a={rcp11} rp11_a={rp11} 
+.ENDS
+
+*
+* ERU27M-2R3L ERU27M powder core choke, helically wound (0 nH)
+*
+.subckt ERU27M-2R3L A1 A2   PARAMS:  
++	ls11=1.81e-06 lsb11=2.47e-08 rlsb11=0.00446 lsc11=6.73e-08 
++	rlsc11=0.694 lsd11=4.38e-07 rlsd11=27 rls11=0.000617 
++	cpb11=3.37e-08 rcpb11=4.97e+04 cp11=5.93e-12 rcp11=1e-05 
++	rp11=924 
+X1 A1 A2 ERU_BASE3  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} lsd11_a={lsd11} rlsd11_a={rlsd11} 
++	rls11_a={rls11} cpb11_a={cpb11} rcpb11_a={rcpb11} 
++	cp11_a={cp11} rcp11_a={rcp11} rp11_a={rp11} 
+.ENDS
+
+*
+* ERU27M-3R9L ERU27M powder core choke, helically wound (0 nH)
+*
+.subckt ERU27M-3R9L A1 A2   PARAMS:  
++	ls11=3.24e-06 lsb11=5.46e-08 rlsb11=0.00262 lsc11=2.67e-08 
++	rlsc11=0.029 lsd11=4.49e-07 rlsd11=12.1 rls11=0.000816 
++	cpb11=1.06e-07 rcpb11=3.33e+04 cp11=5.53e-12 rcp11=1e-05 
++	rp11=1.29e+03 
+X1 A1 A2 ERU_BASE3  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} lsd11_a={lsd11} rlsd11_a={rlsd11} 
++	rls11_a={rls11} cpb11_a={cpb11} rcpb11_a={rcpb11} 
++	cp11_a={cp11} rcp11_a={rcp11} rp11_a={rp11} 
+.ENDS
+
+*
+* ERU27M-6R2L ERU27M powder core choke, helically wound (0 nH)
+*
+.subckt ERU27M-6R2L A1 A2   PARAMS:  
++	ls11=5.42e-06 lsb11=8.05e-08 rlsb11=0.00474 lsc11=4.2e-08 
++	rlsc11=0.0354 lsd11=6.65e-07 rlsd11=15.5 rls11=0.00126 
++	cpb11=5.63e-08 rcpb11=4.53e+04 cp11=7.21e-12 rcp11=1e-05 
++	rp11=1.88e+03 
+X1 A1 A2 ERU_BASE3  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} lsd11_a={lsd11} rlsd11_a={rlsd11} 
++	rls11_a={rls11} cpb11_a={cpb11} rcpb11_a={rcpb11} 
++	cp11_a={cp11} rcp11_a={rcp11} rp11_a={rp11} 
+.ENDS
+
+*
+* ERU27M-8R5L ERU27M powder core choke, helically wound (0 nH)
+*
+.subckt ERU27M-8R5L A1 A2   PARAMS:  
++	ls11=7.63e-06 lsb11=1.21e-07 rlsb11=0.00527 lsc11=6.69e-08 
++	rlsc11=0.0421 lsd11=8.81e-07 rlsd11=17.9 rls11=0.0015 
++	cpb11=2.59e-08 rcpb11=1.06e+05 cp11=5.98e-12 rcp11=1e-05 
++	rp11=2.42e+03 
+X1 A1 A2 ERU_BASE3  PARAMS:  ls11_a={ls11} 
++	lsb11_a={lsb11} rlsb11_a={rlsb11} lsc11_a={lsc11} 
++	rlsc11_a={rlsc11} lsd11_a={lsd11} rlsd11_a={rlsd11} 
++	rls11_a={rls11} cpb11_a={cpb11} rcpb11_a={rcpb11} 
++	cp11_a={cp11} rcp11_a={rcp11} rp11_a={rp11} 
+.ENDS
+
+*
+* ERU33M-1R4L ERU choke, helically wound (0 nH)
+*
+.subckt ERU33M-1R4L A1 A2   PARAMS:  
++	ls1=1.47e-06 rs1=0.000476 cp1=9.9e-13 rcp1=7.58e-6 
++	cpb1=4.01e-12 rcpb1=5.37e-6 rp1=568 lwira1=3.85e-08 
++	lwa1=3.83e-06 rwa1=0.65 lwb1=4.2e-07 rwb1=5.9 
++	lwc1=7.25e-08 rwc1=9.72 ka1=0.9999 
+X1 A1 A2 ERU_BASE2  PARAMS:  ls1_a={ls1} 
++	rs1_a={rs1} cp1_a={cp1} rcp1_a={rcp1} 
++	cpb1_a={cpb1} rcpb1_a={rcpb1} rp1_a={rp1} 
++	lwira1_a={lwira1} lwa1_a={lwa1} rwa1_a={rwa1} 
++	lwb1_a={lwb1} rwb1_a={rwb1} lwc1_a={lwc1} 
++	rwc1_a={rwc1} ka1_a={ka1} 
+.ENDS
+
+*
+* ERU33M-4R6L ERU choke, helically wound (0 nH)
+*
+.subckt ERU33M-4R6L A1 A2   PARAMS:  
++	ls1=4.68e-06 rs1=0.000802 cp1=8.62e-12 rcp1=5.6e-6 
++	cpb1=2.2e-19 rcpb1=4.1e+04 rp1=1.86e+03 lwira1=4.05e-08 
++	lwa1=2.21e-06 rwa1=0.175 lwb1=1.33e-06 rwb1=10.1 
++	lwc1=8.74e-08 rwc1=7.97 ka1=0.9999 
+X1 A1 A2 ERU_BASE2  PARAMS:  ls1_a={ls1} 
++	rs1_a={rs1} cp1_a={cp1} rcp1_a={rcp1} 
++	cpb1_a={cpb1} rcpb1_a={rcpb1} rp1_a={rp1} 
++	lwira1_a={lwira1} lwa1_a={lwa1} rwa1_a={rwa1} 
++	lwb1_a={lwb1} rwb1_a={rwb1} lwc1_a={lwc1} 
++	rwc1_a={rwc1} ka1_a={ka1} 
+.ENDS
+
+*
+* ERU33M-7R2L ERU choke, helically wound (0 nH)
+*
+.subckt ERU33M-7R2L A1 A2   PARAMS:  
++	ls1=7.5e-06 rs1=0.00115 cp1=1.17e-16 rcp1=1.56 
++	cpb1=9.46e-12 rcpb1=1.31e-6 rp1=2.42e+03 lwira1=3.03e-08 
++	lwa1=1.63e-06 rwa1=0.0972 lwb1=3.36e-06 rwb1=5.19 
++	lwc1=9.9e-08 rwc1=4.2 ka1=0.9999 
+X1 A1 A2 ERU_BASE2  PARAMS:  ls1_a={ls1} 
++	rs1_a={rs1} cp1_a={cp1} rcp1_a={rcp1} 
++	cpb1_a={cpb1} rcpb1_a={rcpb1} rp1_a={rp1} 
++	lwira1_a={lwira1} lwa1_a={lwa1} rwa1_a={rwa1} 
++	lwb1_a={lwb1} rwb1_a={rwb1} lwc1_a={lwc1} 
++	rwc1_a={rwc1} ka1_a={ka1} 
+.ENDS
+

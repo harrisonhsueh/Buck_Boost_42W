@@ -1,0 +1,4 @@
+Part Number,Manufacturer,VDS_Max(V),RDSon_4.5V_Typ(mOhm),RDSon_4.5V_Max(mOhm),RDSon_10V_Typ(mOhm),RDSon_10V_Max(mOhm),Qg_4.5V_Typ(nC),Qg_4.5V_Max(nC),Qg_10V_Typ(nC),Qg_10V_Max(nC),Qgd_Typ(nC),Qgs_Typ(nC),VGS_th_Min(V),VGS_th_Typ(V),VGS_th_Max(V),RG_Internal_Typ(Ohm),RthJC_Max(C/W),RthJA_Max(C/W)
+CSD17577Q5A,Texas Instruments,30,4.8,5.8,3.5,4.2,13,17,27,35,2.8,5.1,1.1,1.4,1.8,1.4,2.8,50
+BSZ0902NS,Infineon,30,2.8,3.5,2.2,2.6,13,17,26,35,4.0,4.4,1.2,1.6,2.0,0.9,2.6,60
+BSZ0501NSI,Infineon,30,2.1,2.5,1.7,2.0,11.4,15,24,33,2.9,3.9,1.2,1.6,2.0,1.4,2.5,60

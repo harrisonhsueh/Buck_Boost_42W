@@ -1,0 +1,46 @@
+﻿Important notes and License Agreement
+Please read the important notes and the License Agreement mentioned below through carefully. You are not authorized to use the Design Tools unless you agree to the License Agreement.
+ 
+A. Important notes:
+The following applies to all products contained in the Design Tools:
+1. Our Design Tools consist of freeware and data sets. The Design Tools support your product selection and enable you to conduct calculations and simulations of the performance of EPCOS products ("Design Tools"). The results, shown in the Design Tools ("Results"), may be used for an evaluation of the performance of EPCOS products. The data sets, which will be made available to the customer in the Design Tool normally consist of various data files (e.g. data library, disclaimer and notes concerning the scope of application and restrictions of the data sets). As far as the respective Design Tool contains notes for the use of the Design Tools, such notes shall be valid for the use of all data files and/or data sets contained in the respective Design Tool.
+
+The Results achieved by the intended use of the Design Tools (e.g. Results from a calculation of a circuit by using a simulation programs designed for such purposes) will enable the customer to derive statements and/or data about the performance and/or suitability of our products for certain areas of application. These statements and/or data are based on the typical properties of our products and on our knowledge of typical requirements that are often placed on our products in the areas of application concerned.
+
+The properties of the products, manufactured and delivered by TDK Electronics, may differ within the agreed specifications and tolerances from the Results.
+
+We nevertheless expressly point out that such statements and/or data cannot be regarded as binding statements about the performance and/or suitability of our products for a particular customer application. The supply of any products is subject, upon acceptance of the order, to the terms of delivery agreed in each case and, insofar as no diverging terms of delivery have been agreed, to the applicable statutory regulations.
+
+As a rule, TDK Electronics is either unfamiliar with individual customer applications or less familiar with them than the customers themselves. The Results will not contain the various influences which might occur in respect to the EPCOS products, when the EPCOS products will be incorporated into the customer application (e.g. customers’ usage environment and customers’ measurement conditions). Therefore, the achieved Results shown in the Design Tools and the customers’ data may differ. For these reasons, it is always ultimately incumbent on the customer to check and decide whether an EPCOS product with the properties described in the product specification is suitable for use in a particular customer application.
+2. We also point out that in individual cases a malfunction of electronic components or failure before the end of their usual service life cannot be completely ruled out in the current state of the art, even if they are operated as specified. In customer applications requiring a very high level of operational safety and especially in customer applications in which the malfunction or failure of an electronic component could endanger human life or health (e.g. in accident prevention or life-saving systems), it must therefore be ensured by means of suitable design of the customer application or other action taken by the customer (e.g. installation of protective circuitry or redundancy) that no injury or damage is sustained by third parties in the event of malfunction or failure of an electronic component. The warnings, cautions and product-specific notes, which will be found in our data sheets, in the Design Tools and on the Internet at tdk-electronics.tdk.com/important_notes, must be observed.
+3. We constantly strive to improve our products. Consequently, the products described in the Design Tools may change from time to time. The same is true of the corresponding product specifications. Please check therefore to what extent product descriptions and specifications contained in the Design Tools are still applicable before or when you place an order and if the respective Design Tool is still up to date.
+
+We also reserve the right to discontinue production and delivery of products. Consequently, we cannot guarantee that all products named in Design Tools will always be available.
+	
+B. License Agreement for the Use of Design Tools:
+This License Agreement is made and entered into between TDK Electronics AG, having its principal place of business at Rosenheimer Strasse 141e, 81671 Munich, Germany ("TDK Electronics"), and the user of the Design Tools ("Licensee").
+1. Grant of License
+Subject to the terms and conditions of this License Agreement, EPCOS hereby grants to Licensee, and Licensee hereby accepts from TDK Electronics, a non-exclusive license to use the Design Tools. The license is granted free of charge.
+2. Term
+This License Agreement shall be valid for an unlimited period of time. Either party may terminate this License Agreement in writing with immediate effect.
+3. Hardware / Software
+Licensee shall have sole responsibility for the operability of the hardware and of the software that is used with the Design Tools.  
+4. Intellectual Property Rights
+Licensee acknowledges that, except as expressly set forth in this License Agreement, all proprietary rights in and appurtenant to the Design Tools, including without limitation to copyrights, patents and trade secret rights, are and shall remain the sole property of TDK Electronics or its third party licensors. Licensee shall have only the limited use rights specifically granted by this License Agreement.
+
+Licensee shall not copy, modify, sublicense, transfer, disassemble, reverse engineer, decompile or otherwise use the Design Tools, except as specifically authorised hereunder or by compulsory law. 
+5. No Representation, Warranty or Liability for the Design Tools
+TDK Electronics hereby expressly disclaims any representation or warranty, whether express, implied or statutory, with regard to the Design Tools, including but not limited to any representation or warranty of merchantability, suitability for any purpose, completeness and accuracy of the achieved Results shown in the Design Tools, title or non-infringement except to the extent such representation and/or warranty is mandatory at law.
+
+Any liability of TDK Electronics, whether in contract, tort or under any other legal or equitable theory, arising out of or in connection with the provisions of this License Agreement or the use of the Design Tools shall be excluded, except to the extent liability is mandatory at law.
+6. Export Regulations
+Licensee shall comply with all export laws, rules and regulations applicable to the Design Tools.
+7. Assignment
+Licensee shall not assign or transfer to any third party, without the prior written consent of TDK Electronics, this License Agreement or rights or obligations hereunder.
+8. Written Form
+The provisions of this License Agreement may not be modified, amended, nor waived, except by a written instrument duly executed by the parties hereto. The requirement of written form can only be waived in writing.
+9. Governing Law/Arbitration
+This License Agreement shall be subject to the substantive law in force in Germany without reference to its conflicts of law provisions. All disputes arising out of or in connection with this License Agreement, including any question regarding its existence, validity or termination, shall be finally settled by arbitration under the Rules of Arbitration of the International Chamber of Commerce, Paris (“Rules“) by three arbitrators appointed in accordance with the said Rules. The seat of arbitration shall be Munich, Germany. The procedural law of this place shall apply where the Rules are silent. The language to be used in the arbitration proceeding shall be English.
+10. Severability
+In the event that one or more provisions of this License Agreement shall, or shall be deemed to, be invalid or unenforceable, the validity and enforceability of the other provisions of this License Agreement shall not be affected thereby. In such case, the parties agree to recognize and give effect to such valid and enforceable provision or provisions which correspond as closely as possible with the commercial intent of the parties. The same shall apply in the event that this License Agreement contains any gaps.
+
