@@ -1,102 +1,181 @@
 """
 constants.py
 Project: USB-C PD to 12V Fan Array Controller
-Version: 1.1.0
-
-This file serves as the Single Source of Truth for the project. 
-It contains physical constants (datasheet values) and design decisions 
-(calculated values from previous optimization passes).
+Version: 1.3.0
 """
 
-from dataclasses import dataclass
-from typing import Final
+import numpy as np
+from dataclasses import dataclass, field
+from typing import Final, Dict
+from component_utils import get_component_specs
+
+# ==========================================
+# 1. COMPONENT TEMPLATES (Blueprints)
+# ==========================================
+
+class IC_LM5176:
+    # --- ENABLE / UVLO PIN SPECS ---
+    # Thresholds (V)
+    V_EN_NOM: Final = 1.22
+    V_EN_MIN: Final = 1.17
+    V_EN_MAX: Final = 1.29
+    
+    # Currents (A)
+    I_HYS_NOM: Final = 3.15e-6
+    I_HYS_MIN: Final = 2.15e-6
+    I_HYS_MAX: Final = 4.25e-6
+    
+    I_STBY_NOM: Final = 2.0e-6
+    I_STBY_MAX: Final = 4.0e-6 # Statically worst-case
+    
+    # Derived Sigma (Legal Min/Max treated as 4-sigma for Monte Carlo)
+    V_EN_SIGMA: Final = (V_EN_MAX - V_EN_NOM) / 4
+    I_HYS_SIGMA: Final = (I_HYS_MAX - I_HYS_NOM) / 4
+
+class DESIGN_TARGETS:
+    V_USB_MIN: Final = 4.50      # Hard Ceiling, must turn on before this point
+    V_ON_SAFE_FLOOR: Final = 3.8  # Soft Floor for Gate Health, dont turn on before this
+    V_HYS_MIN: Final = 0.2
+    V_OFF_MIN: Final = 3.6 # must be off if fall below this
+    HYS_MIN_GAP: Final = 0.25    # Min gap before Latch takes over
+    MAX_DIVIDER_UW: Final = 500  # Power budget
+
+@dataclass(frozen=True)
+class InductorPart:
+    PART_NUMBER: str
+    L: float
+    DCR: float
+    I_SAT: float
+    RP: float = 0.0
+    RS_SPICE: float = 0.0
+    CORE_LOSS_COEFF: float = 0.0
+
+@dataclass(frozen=True)
+class MosfetPart:
+    PART_NUMBER: str
+    MANUFACTURER: str
+    RDSON_TYP: float
+    RDSON_MAX: float
+    QG_TYP: float
+    QGD_TYP: float
+    QGS_TYP: float
+    VGS_TH_TYP: float
+    RG_INT: float
+    RTH_JC: float
+    RTH_JA: float
+
+# ==========================================
+# 2. DATABASE / LIBRARY LOADING
+# ==========================================
+
+ACTIVE_IND_ID = "7443634700"
+ACTIVE_FET_ID = "BSC0902NS"
+
+# Note: Wrapped in try-except if these CSVs aren't guaranteed at runtime
+ind_raw = get_component_specs(ACTIVE_IND_ID, "data/inductors.csv")
+fet_raw = get_component_specs(ACTIVE_FET_ID, "data/mosfets.csv")
+
+WURTH_7443634700 = InductorPart(
+    PART_NUMBER=str(ind_raw['Part_Number']),
+    L=float(ind_raw['Inductance_uH']) * 1e-6,
+    DCR=float(ind_raw['DCR_typ_mOhm']) / 1000.0,
+    I_SAT=float(ind_raw['Isat_10pct_A']),
+    RP=float(ind_raw['Rp_Ohm']),
+    RS_SPICE=float(ind_raw['Rs_spice_Ohm']),
+    CORE_LOSS_COEFF=1.42
+)
+
+INFINEON_BSC0902NS = MosfetPart(
+    PART_NUMBER=str(fet_raw['Part_Number']),
+    MANUFACTURER=str(fet_raw['Manufacturer']),
+    RDSON_TYP=float(fet_raw['RDSon_4.5V_Typ']) / 1000.0,
+    RDSON_MAX=float(fet_raw['RDSon_4.5V_Max']) / 1000.0,
+    QG_TYP=float(fet_raw['Qg_4.5V_Typ']) * 1e-9,
+    QGD_TYP=float(fet_raw['Qgd_Typ']) * 1e-9,
+    QGS_TYP=float(fet_raw['Qgs_Typ']) * 1e-9,
+    VGS_TH_TYP=float(fet_raw['VGS_th_Typ']),
+    RG_INT=float(fet_raw['RG_Internal_Typ']),
+    RTH_JC=float(fet_raw['RthJC_Max']),
+    RTH_JA=float(fet_raw['RthJA_Max'])
+)
+
+# ==========================================
+# 3. SYSTEM & DESIGN CONFIGURATION
+# ==========================================
 
 @dataclass(frozen=True)
 class USBCSpecs:
-    """Standard USB-C Power Delivery limits and tolerances."""
     V_MIN: float = 5.0
     V_MAX: float = 20.0
-    V_TOLERANCE: float = 0.10          # 10% standard ripple/tolerance
-    I_MAX_HIGH_POWER: float = 5.0      # Requires E-marked cable
-    I_MAX_STANDARD: float = 3.0        # Standard PD limit
+    V_TOLERANCE: float = 0.10
+    I_MAX_HIGH_POWER: float = 5.0
+    I_MAX_STANDARD: float = 3.0
 
 @dataclass(frozen=True)
 class FanSpecs:
-    """Physical specifications for Arctic P14 series fans."""
     V_NOMINAL: float = 12.0
-    I_MAX_PRO: float = 0.35            # Max current draw (P14 Pro)
-    I_MAX_PWM: float = 0.12            # Max current draw (P14 PWM PST)
-    MAX_COUNT: int = 10                # Target array size
+    I_MAX_PRO: float = 0.35
+    I_MAX_PWM: float = 0.12
+    MAX_COUNT: int = 10
 
 @dataclass(frozen=True)
 class DesignChoices:
-    """
-    Optimized values derived from simulation notebooks.
-    
-    Inductance: Selected in '01_Buck_Boost_Initial_Calculations.ipynb' 
-    Targeting lowest combined DCR and Core loss at 100kHz.
-    
-    Capacitance: Selected in '03_Buck_Boost_Cout_Cin.ipynb'
-    """
-    # Power Stage Decisions
-    F_SW_HZ: float = 100_000.0         # 100 kHz
-    L_HENRY: float = 47e-6             # 47 uH (Optimized for ripple/size)
-    
-    # Output Filter (4x 4700uF Electrolytic Bank + 9x 10uF Ceramic)
-    C_OUT_NOMINAL: float = 4.7e-3 * 4 + 10e-6 * 9  # 4x 4700uF + 9x 10uF ceramic
-    C_OUT_DERATING_FACTOR: float = 0.70    # 70% retention based on 12V DC Bias
-    
-    # Input Filter (2x 47uF Electrolytic + 2x 10uF Ceramic)
-    C_IN_NOMINAL: float = 47e-6 * 4 + 10e-6 * 2
-    C_IN_DERATING_FACTOR: float = 0.80     # 80% retention based on 20V DC Bias
+    INDUCTOR: InductorPart = WURTH_7443634700
+    MOSFET: MosfetPart = INFINEON_BSC0902NS
+    F_SW_HZ: float = 100_000.0
+    C_OUT_NOMINAL: float = (4.7e-3 * 4) + (10e-6 * 9)
+    C_OUT_DERATING: float = 0.70
+    C_OUT_DF_BASE: float = 0.16
+    C_OUT_DF_MOD: float = 0.02
+    C_IN_NOMINAL: float = (47e-6 * 4) + (10e-6 * 2)
+    C_IN_DERATING: float = 0.80
 
-    # ESR Parameters (Derived from Dissipation Factor @ 120Hz)
-    C_OUT_CAP_DF_BASE: float = 0.16          
-    C_OUT_CAP_DF_MODIFIER: float = 0.02      # Aging/Temp modifier
-    C_OUT_F_DF_REF_HZ: float = 120.0
-
-    # MOSFET Selection (BSC0902NS)
-    
-@dataclass(frozen=True)
-class ControlSystemSpecs:
-    """Power requirements for the ESP32 and Sensor Suite."""
-    V_LOGIC: float = 5.0
-    
-    # ESP32-WROOM typically pulls 80-150mA depending on WiFi state
-    I_ESP32_AVG_AMPS: float = 0.120 
-    
-    # INA226 Quiescent current is ~330uA per chip
-    I_INA226_TOTAL_AMPS: float = 14 * 330e-6
-    
-    # Efficiency of the 12V -> 5V Buck converter
-    LOGIC_BUCK_EFFICIENCY: float = 0.85 
-
-# --- Derived Minimum Load ---
-# Power required just to keep the controller alive (Fans OFF)
-MIN_SYSTEM_LOAD_WATTS: Final[float] = (
-    ((ControlSystemSpecs.I_ESP32_AVG_AMPS + ControlSystemSpecs.I_INA226_TOTAL_AMPS) 
-     * ControlSystemSpecs.V_LOGIC) 
-    / ControlSystemSpecs.LOGIC_BUCK_EFFICIENCY
-)
-
-# --- Instantiate Namespaces for Global Access ---
+# ==========================================
+# 4. INSTANTIATION & DERIVED CONSTANTS
+# ==========================================
 
 USB = USBCSpecs()
 FAN = FanSpecs()
 DESIGN = DesignChoices()
 
-# --- Derived System Constants (Read-Only) ---
+# Calculation for I_LOGIC_TOTAL (14x INA226 + ESP32)
+I_LOGIC_TOTAL: Final = 0.120 + (14 * 330e-6) 
+MIN_SYSTEM_LOAD_WATTS: Final = (I_LOGIC_TOTAL * 5.0) / 0.85
 
-# Total capacity required for the fan array
-MAX_LOAD_WATTS: Final[float] = FAN.V_NOMINAL * FAN.I_MAX_PRO * FAN.MAX_COUNT
+MAX_FAN_LOAD_WATTS: Final = FAN.V_NOMINAL * FAN.I_MAX_PRO * FAN.MAX_COUNT
+TOTAL_MAX_LOAD_WATTS: Final = MAX_FAN_LOAD_WATTS + MIN_SYSTEM_LOAD_WATTS
 
-# Effective capacitance after hardware derating
-C_OUT_EFFECTIVE: Final[float] = DESIGN.C_OUT_NOMINAL * DESIGN.C_OUT_DERATING_FACTOR
+SYSTEM_L_HENRY: Final = DESIGN.INDUCTOR.L
+C_OUT_EFFECTIVE: Final = DESIGN.C_OUT_NOMINAL * DESIGN.C_OUT_DERATING
 
-# Calculated ESR based on Design Choices
-# Formula: ESR = DF / (2 * pi * f * C)
-import numpy as np
-C_OUT_TOTAL_ESR_OHMS: Final[float] = (
-    (DESIGN.C_OUT_CAP_DF_BASE + DESIGN.C_OUT_CAP_DF_MODIFIER) / 
-    (2 * np.pi * DESIGN.C_OUT_F_DF_REF_HZ * DESIGN.C_OUT_NOMINAL)
+# Standard ESR estimation formula
+C_OUT_ESR_OHMS: Final = (
+    (DESIGN.C_OUT_DF_BASE + DESIGN.C_OUT_DF_MOD) / 
+    (2 * np.pi * 120.0 * DESIGN.C_OUT_NOMINAL)
 )
+
+# ==========================================
+# 5. MANUFACTURING CONSTRAINTS (DFM)
+# ==========================================
+@dataclass(frozen=True)
+class JLCPCBConstraints:
+    # Resistor library for auto-selection scripts
+    BASIC_0603_RESISTORS: np.ndarray = field(default_factory=lambda: np.array([
+        1e3, 1.2e3, 1.5e3, 1.8e3, 2e3, 2.2e3, 2.4e3, 2.7e3, 3e3, 3.6e3, 3.9e3, 
+        4.7e3, 4.99e3, 5.1e3, 5.6e3, 6.2e3, 6.8e3, 7.5e3, 8.2e3, 
+        10e3, 12e3, 15e3, 18e3, 20e3, 22e3, 24e3, 27e3, 30e3, 36e3, 39e3, 
+        47e3, 49.9e3, 51e3, 56e3, 68e3, 75e3, 82e3, 
+        100e3, 120e3, 150e3, 200e3, 220e3, 270e3, 300e3, 330e3, 470e3, 510e3, 
+        1e6, 2e6, 10e6
+    ]))
+
+    RES_PPM_MAPPING: Dict[float, int] = field(default_factory=lambda: {
+        2.0: 200, 5.1: 200,
+        1.0: 400, 2.2: 400, 4.7: 400, 10.0: 400,
+        0.0: 0
+    })
+
+    BASE_TOLERANCE: float = 0.01
+    EXTENDED_FEE_USD: float = 3.00
+
+MFG = JLCPCBConstraints()

@@ -1,0 +1,3 @@
+Part_Number,Manufacturer,Technology,Temp_Coeff,Cap_uF,V_Rating,ESR_100kHz_mOhm,DF_120Hz,Size_Code,L_mm,W_mm,H_mm,Ripple_100kHz_A,Freq_Factor_50Hz,Freq_Factor_120Hz,Freq_Factor_1kHz,Freq_Factor_10kHz,DC_Bias_Coeff,Leakage_Current_uA,Temp_Max_C,Life_Hours,Tolerance,LCSC_PN,LCSC_Type
+LKMJ2001E472MF,Ymin,Alum_Elec,,4700,25,11,0.14,18x20,18,18,20,4.01,0.4,0.5,0.8,0.9,0,1175,105,10000,0.20,C442850,Extended
+CL31A106KBHNNNE,Samsung_Electro-Mechanics,MLCC,X5F,10,50,8.6,,1206,3.2,1.6,1.8,,,,,,-0.65,,85,,0.10,C13585,Basic
