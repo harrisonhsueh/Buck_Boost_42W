@@ -218,6 +218,7 @@ class JLCPCBConstraints:
         1e6, 2e6, 10e6
     ]))
 
+    # otherwise is 100ppm?
     RES_PPM_MAPPING: Dict[float, int] = field(default_factory=lambda: {
         2.0: 200, 5.1: 200,
         1.0: 400, 2.2: 400, 4.7: 400, 10.0: 400,
