@@ -8,11 +8,11 @@ const int STATUS_LED_PIN = 13;
 
 // --- CALIBRATION & MATH ---
 const float DIVIDER_RATIO = 5.0; 
-const float TARGET_SOURCE_VOLTAGE = 5.5; 
+const float TARGET_SOURCE_VOLTAGE = 6; 
 
 // Replace with your measured values
-float actualVolts[] = { 0.0, 0.5, 1.1, 1.5, 2.0, 2.5, 3.0, 3.3 };
-int rawADCValues[]  = { 120, 640, 1380, 1890, 2520, 3150, 3850, 4095 };
+float actualVolts[] = { 0, 0.06, 0.078, 0.1, 0.12, 0.126, 0.13, 0.132, 0.135, 0.14, 0.145, 0.15, 0.16, 0.18, 0.2, 0.5, 1.004, 2.007, 2.516, 2.60, 2.711, 2.801, 2.902, 3.001, 3.11, 3.15, 3.165, 3.172, 3.189, 3.208, 3.232};
+float rawADCValues[]  = { 0, 0.01, 0.05, 0.2, 0.480, 0.70, 1.6, 2.7, 6.7, 13.6, 17.5, 22.9, 36.9, 60.6, 83, 444.1, 1060.1, 2304.8, 2925.2, 3039.9, 3211.7, 3364.8, 3567, 3727.1, 3968, 4070.1, 4093.4, 4094.5, 4094.8, 4094.99, 4095};
 const int NUM_POINTS = sizeof(actualVolts) / sizeof(actualVolts[0]);
 
 // --- STATE VARIABLES ---
@@ -85,21 +85,26 @@ void loop() {
       lastPhysicalState = currentReading; // Sync physical state
       applySystemState();
     }
+    delay(10000);
+    systemOn = false; 
+    lastPhysicalState = currentReading; // Sync physical state
+    applySystemState();
   }
 
   // 4. One-Time Pulse Logic
   // Only fires if system is OFF and we have previously transitioned from ON
-  if (!systemOn && pulseArmed) {
+  if (!systemOn && pulseArmed) { //0 disable single pulse
     long sum = 0;
-    for(int i = 0; i < 16; i++) sum += analogRead(VOLTAGE_SENSE_PIN);
-    int rawAvg = sum / 16;
+    for(int i = 0; i < 4; i++) sum += analogRead(VOLTAGE_SENSE_PIN);
+    int rawAvg = sum / 4;
 
     float sourceV = getCalibratedVoltage(rawAvg) * DIVIDER_RATIO;
 
     if (sourceV <= TARGET_SOURCE_VOLTAGE) {
       // 10us Pulse
       digitalWrite(GATE_DRIVE_PIN, HIGH);
-      delayMicroseconds(10);
+      // delayMicroseconds(1000);
+      delay(2);
       digitalWrite(GATE_DRIVE_PIN, LOW);
       
       // Disarm: It will not pulse again until the system is turned ON and OFF again
