@@ -6,3 +6,6 @@ __pycache__/
 *.out
 *.toc
 .ipynb_checkpoints/
+
+# Claude Code local settings (per-machine permissions)
+.claude/settings.local.json
