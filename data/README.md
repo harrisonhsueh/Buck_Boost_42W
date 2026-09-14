@@ -7,7 +7,7 @@ Part databases and analysis inputs. Loaded by name (not column position), so new
 | `inductors.csv` | inductor part | electrical specs, SPICE-model values, size, price |
 | `mosfets.csv` | MOSFET part | electrical/thermal specs, price |
 | `capacitors.csv` | capacitor part | specs |
-| `inductor_losses_measured.csv` | inductor part × operating point × fsw | Würth REDEXPERT loss results |
+| `inductor_losses_measured.csv` | inductor part × operating point × fsw | manufacturer loss-calculator results (Würth REDEXPERT, Coilcraft Power Inductor Finder) |
 | `efficiency_analysis.csv` | analysis output | — |
 
 ## Price columns (`inductors.csv`, `mosfets.csv`)
@@ -46,7 +46,16 @@ JLCPCB's one-time extended-part fee (per unique part, per order) is not included
 
 ## `inductor_losses_measured.csv`
 
-Inputs (`Freq_kHz`, `Duty_pct`, `I_avg_A`, `dI_pp_A`) are pre-computed for the Würth REDEXPERT calculator; outputs (`P_ac_mW`, `P_dc_mW`, `P_total_mW`, `dT_K`) are entered by hand. V1 design basis is `5V_3A_input`: Vin = 5 V, Iin = 3 A (boost mode, so I_L,avg = 3 A independent of efficiency), Vout = 12 V. Rows at 150/200/300 kHz exist for the 22/33/47 µH 2013 parts to check the fsw choice.
+Inputs (`Freq_kHz`, `Duty_pct`, `I_avg_A`, `dI_pp_A`) are pre-computed for the manufacturers' loss calculators; outputs (`P_ac_mW`, `P_dc_mW`, `P_total_mW`, `dT_K`) are entered by hand. V1 design basis is `5V_3A_input`: Vin = 5 V, Iin = 3 A (boost mode, so I_L,avg = 3 A independent of efficiency), Vout = 12 V. Rows at 150/200/300 kHz exist for the 22/33/47 µH 2013 parts to check the fsw choice.
+
+Column order is the same for every manufacturer: `Part_Number, Manufacturer, Series, Size_Code, …`, with `Part_Number` matching `inductors.csv` exactly (the notebook joins on it). `Source` holds the calculator URL, which identifies the tool:
+
+| Manufacturer | Tool | Output resolution as entered |
+|---|---|---|
+| Würth Elektronik | REDEXPERT | 3 significant figures |
+| Coilcraft | Power Inductor Finder | 1 mW, 1 K |
+
+Both tools report `P_dc_mW` as I_L,avg² × typical DCR (checked in notebook 03), so `P_ac_mW` holds core loss plus the ripple's winding loss. The quantization section below applies to REDEXPERT; the Power Inductor Finder's input resolution has not been documented yet. TDK ERU 24 `B82559A0303A024` is not available in TDK's calculator.
 
 ### Calculator input precision (REDEXPERT quantization)
 

@@ -190,6 +190,10 @@ MIN_SYSTEM_LOAD_WATTS: Final = (I_LOGIC_TOTAL * 5.0) / 0.85
 MAX_FAN_LOAD_WATTS: Final = FAN.V_NOMINAL * FAN.I_MAX_PRO * FAN.MAX_COUNT
 TOTAL_MAX_LOAD_WATTS: Final = MAX_FAN_LOAD_WATTS + MIN_SYSTEM_LOAD_WATTS
 
+# Operating-cost basis (README, Optimization objective 2): continuous operation, $0.20/kWh
+ELECTRICITY_USD_PER_KWH: Final = 0.20
+HOURS_PER_YEAR: Final = 8760
+
 # Part-dependent: None until parts are loaded. For real power-stage math, build a
 # design with make_design(load_parts=True) and read design.INDUCTOR.L off it.
 SYSTEM_L_HENRY: Final = DESIGN.INDUCTOR.L if DESIGN.INDUCTOR is not None else None
