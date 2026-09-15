@@ -1,12 +1,13 @@
 // efficiency_esp32.ino -- Buck-Boost 42 W (V1) efficiency sweep logger
 //
 // Daughter board: Adafruit ESP32 Feather (HUZZAH32), powered by the PCB's 5 V buck into
-// its USB pin. Reads the four system INA226s with simultaneous triggered conversions,
-// streams one CSV row per conversion (~0.29 s) over Serial, and appends ~1.2 s averages
-// to flash (LittleFS) so a sweep is kept even with no laptop attached.
+// its USB pin. Reads the INA226s with simultaneous triggered conversions, streams one CSV
+// row per conversion (~0.29 s) over Serial, and appends ~1.2 s averages to flash (LittleFS)
+// so a sweep is kept even with no laptop attached. Drives the 10 fan PWM lines at 25 kHz
+// (all at one duty) and can ramp them slowly for fan-load sweeps.
 //
-// Test: power-resistor load on the 12 V fan rail (2 x 8 ohm: series, single, parallel),
-// bench supply ramped slowly 4.5 -> 21 V for each load.
+// Tests: bench supply fixed (e.g. 5 / 9 / 15 / 20 V) with a slow fan PWM ramp, or bench
+// supply ramped slowly with a fixed load (fans at fixed PWM, or power resistors).
 //
 // USB WARNING: the Feather USB pin is on the micro-USB VBUS net, so a normal cable ties the
 // laptop's VBUS to the PCB's 5 V buck. While the PCB is powered, use a cable with VBUS (red)
@@ -14,11 +15,15 @@
 //
 // Serial commands (newline-terminated):
 //   help, info, header, dump, pause, resume, erase
+//   ramp <seconds> [max_pct] [iin_limit_A]   0 -> max_pct over <seconds> (same slope back
+//                                            down); turns around early if Iin > limit
+//   pwm <pct>                                hold a fixed fan duty
+//   stop                                     fans to 0 %
 //
-// CSV columns: run, t_ms, n (samples averaged), flags, then per channel <name>_V (bus),
-// <name>_uV (shunt), <name>_A (nominal shunt). All voltages are INA226 bus readings (no ESP32
-// ADC). Recompute currents from *_uV with calibrated shunt values in analysis; the _A columns
-// are for quick looks.
+// CSV columns: run, t_ms, n (samples averaged), flags, pwm_pct, then per channel <name>_V
+// (bus), <name>_uV (shunt), <name>_A (nominal shunt). All voltages are INA226 bus readings.
+// Recompute currents from *_uV with calibrated shunt values in analysis; the _A columns are
+// for quick looks. The flash log repeats the header at each boot.
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -28,7 +33,18 @@
 // --- PIN DEFINITIONS ---
 const int I2C_SDA_PIN = 23;        // Feather ESP32 default SDA -- confirm against PCB schematic
 const int I2C_SCL_PIN = 22;        // Feather ESP32 default SCL
-const int STATUS_LED_PIN = 13;     // Feather red LED, toggles on each flash write; -1 to disable
+// Fan PWM labels 1..10 (all driven to the same duty). Assumes PWM label N and INA226 "fanN"
+// (0x43 + N) are the same header. GPIO5 and GPIO15 are boot strapping pins; a fan pull-up
+// holds them high, which matches their default strap state.
+const int FAN_PWM_PINS[] = {13, 27, 33, 15, 32, 14, 26, 25, 4, 5};
+const int NUM_FAN_PWM_PINS = sizeof(FAN_PWM_PINS) / sizeof(FAN_PWM_PINS[0]);
+const bool FAN_PWM_INVERTED = false; // true if the GPIO drives the fan PWM through an inverting transistor
+
+// --- FAN PWM ---
+const uint32_t FAN_PWM_FREQ_HZ = 25000;  // Intel 4-wire fan PWM frequency
+const uint8_t FAN_PWM_BITS = 10;
+const float RAMP_DEFAULT_S = 120.0;
+const float RAMP_IIN_LIMIT_A = 3.0;      // default turn-around current (USB PD 3 A)
 
 // --- INA226 CHANNELS ---
 #define MAX_CHANNELS 14
@@ -42,7 +58,7 @@ struct Channel {
 
 Channel channels[MAX_CHANNELS] = {
   {"in",    0x40, 0.001, false},  // buck-boost input (bus = Vin)
-  {"fan12", 0x41, 0.001, false},  // 12 V fan rail (power-resistor load for this test)
+  {"fan12", 0x41, 0.001, false},  // 12 V fan rail
   {"b5in",  0x42, 0.033, false},  // 5 V buck input, 12 V side
   {"b5out", 0x43, 0.010, false},  // 5 V buck output -> Feather USB pin
   {"fan1",  0x44, 0.010, false},
@@ -56,8 +72,9 @@ Channel channels[MAX_CHANNELS] = {
   {"fan9",  0x4C, 0.010, false},
   {"fan10", 0x4D, 0.010, false},
 };
-// 4 = system rails only. Set 14 for fan-load tests (the CSV header changes: dump + erase first).
-const int NUM_CHANNELS = 4;
+// 14 = system rails + per-fan channels (fans not found at boot log blank columns).
+// 4 = system rails only.
+const int NUM_CHANNELS = 14;
 const int CH_IN = 0, CH_FAN12 = 1, CH_B5IN = 2, CH_B5OUT = 3;
 
 // --- INA226 REGISTERS & CONFIG ---
@@ -96,12 +113,14 @@ struct Row {
   unsigned long tMs;
   uint16_t n;
   uint8_t flags;
+  float pwmPct;
   float busV[MAX_CHANNELS];
   float shuntUV[MAX_CHANNELS];
   bool ok[MAX_CHANNELS];
 };
 
 struct Accum {
+  double pwmPct;
   double busV[MAX_CHANNELS];
   double shuntUV[MAX_CHANNELS];
   uint16_t nCh[MAX_CHANNELS];
@@ -109,17 +128,69 @@ struct Accum {
   uint8_t flags;
 };
 
+enum FanMode { FAN_HOLD, FAN_RAMP_UP, FAN_RAMP_DOWN };
+
 Preferences prefs;
 Accum accum;
 uint32_t runNumber = 0;       // 0 until the first sample with the input live
 bool flashOk = false;
 bool flashPaused = false;
 bool flashFull = false;
-bool ledState = false;
+bool headerWrittenThisBoot = false;
 unsigned long lastStatusMs = 0;
 String cmdBuf;
 
+FanMode fanMode = FAN_HOLD;
+float fanPct = 0.0;
+float rampSlopePctPerS = 0.0;
+float rampMaxPct = 100.0;
+float rampIinLimitA = RAMP_IIN_LIMIT_A;
+unsigned long lastFanUpdateMs = 0;
+float lastIinA = 0.0;
+bool lastIinOk = false;
+
 // --- HELPER FUNCTIONS ---
+void setFanPct(float pct) {
+  fanPct = constrain(pct, 0.0f, 100.0f);
+  uint32_t maxDuty = (1UL << FAN_PWM_BITS) - 1;  // ledcWrite treats maxDuty as fully on
+  uint32_t duty = (uint32_t)lround(fanPct / 100.0f * maxDuty);
+  if (FAN_PWM_INVERTED) duty = maxDuty - duty;
+  for (int i = 0; i < NUM_FAN_PWM_PINS; i++) ledcWrite(FAN_PWM_PINS[i], duty);
+}
+
+// Called once per sample, before the conversion, so pwm_pct is constant within each row.
+void updateFanRamp() {
+  unsigned long now = millis();
+  float dt = (now - lastFanUpdateMs) / 1000.0f;
+  lastFanUpdateMs = now;
+
+  if (fanMode == FAN_RAMP_UP) {
+    if (lastIinOk && lastIinA > rampIinLimitA) {
+      Serial.printf("# ramp: Iin %.2f A > %.2f A limit at %.1f %%, ramping down\n",
+                    lastIinA, rampIinLimitA, fanPct);
+      fanMode = FAN_RAMP_DOWN;
+      return;
+    }
+    float next = fanPct + rampSlopePctPerS * dt;
+    if (next >= rampMaxPct) {
+      setFanPct(rampMaxPct);
+      fanMode = FAN_RAMP_DOWN;
+      Serial.printf("# ramp: reached %.1f %%, ramping down\n", rampMaxPct);
+    } else {
+      setFanPct(next);
+    }
+  } else if (fanMode == FAN_RAMP_DOWN) {
+    float next = fanPct - rampSlopePctPerS * dt;
+    if (next <= 0.0f) {
+      setFanPct(0.0);
+      fanMode = FAN_HOLD;
+      Serial.println("# ramp: done, fans at 0 %");
+    } else {
+      setFanPct(next);
+    }
+  }
+}
+
 bool writeReg(uint8_t addr, uint8_t reg, uint16_t val) {
   Wire.beginTransmission(addr);
   Wire.write(reg);
@@ -152,6 +223,7 @@ void takeSample(Row &r) {
   r.tMs = millis();
   r.n = 1;
   r.flags = 0;
+  r.pwmPct = fanPct;
 
   bool ready[MAX_CHANNELS];
   int pending = 0;
@@ -209,6 +281,7 @@ void addToAccum(const Row &r) {
     accum.shuntUV[i] += r.shuntUV[i];
     accum.nCh[i]++;
   }
+  accum.pwmPct += r.pwmPct;
   accum.n++;
   accum.flags |= r.flags;
 }
@@ -217,6 +290,7 @@ void accumToRow(Row &r) {
   r.tMs = millis();
   r.n = accum.n;
   r.flags = accum.flags;
+  r.pwmPct = accum.n > 0 ? accum.pwmPct / accum.n : 0.0;
   for (int i = 0; i < NUM_CHANNELS; i++) {
     r.ok[i] = accum.nCh[i] > 0;
     if (r.ok[i]) {
@@ -228,7 +302,7 @@ void accumToRow(Row &r) {
 }
 
 String csvHeader() {
-  String h = "run,t_ms,n,flags";
+  String h = "run,t_ms,n,flags,pwm_pct";
   for (int i = 0; i < NUM_CHANNELS; i++) {
     h += ","; h += channels[i].name; h += "_V";
     h += ","; h += channels[i].name; h += "_uV";
@@ -243,7 +317,8 @@ String rowToCsv(const Row &r) {
   s += String(runNumber); s += ',';
   s += String(r.tMs); s += ',';
   s += String(r.n); s += ',';
-  s += String(r.flags);
+  s += String(r.flags); s += ',';
+  s += String(r.pwmPct, 2);
   for (int i = 0; i < NUM_CHANNELS; i++) {
     if (r.ok[i]) {
       s += ','; s += String(r.busV[i], 4);
@@ -263,22 +338,20 @@ void flashAppend(const String &line) {
     Serial.println("# FLASH FULL: flash logging stopped. dump, then erase.");
     return;
   }
-  bool isNew = !LittleFS.exists(LOG_PATH);
   // Open/append/close per row: a power cut loses at most the row being written.
   File f = LittleFS.open(LOG_PATH, FILE_APPEND);
   if (!f) {
     Serial.println("# FLASH ERROR: could not open log file");
     return;
   }
-  if (isNew) {
+  if (!headerWrittenThisBoot) {  // a header per boot, so a column change never corrupts the log
     f.print(csvHeader());
     f.print('\n');
+    headerWrittenThisBoot = true;
   }
   f.print(line);
   f.print('\n');
   f.close();
-  ledState = !ledState;
-  if (STATUS_LED_PIN >= 0) digitalWrite(STATUS_LED_PIN, ledState ? HIGH : LOW);
 }
 
 void startRun() {
@@ -296,8 +369,9 @@ void printStatus(const Row &r) {
   float pFan = powerW(r, CH_FAN12);
   float pB5in = powerW(r, CH_B5IN);
   float pB5out = powerW(r, CH_B5OUT);
-  Serial.printf("# in %.3f V %.3f A %.2f W | fan12 %.3f V %.3f A %.2f W | 5V buck in %.3f W out %.3f W | "
+  Serial.printf("# pwm %.1f %% | in %.3f V %.3f A %.2f W | fan12 %.3f V %.3f A %.2f W | 5V buck in %.3f W out %.3f W | "
                 "eta_bb %.3f  fan/in %.3f  eta_5v %.3f | run %u flags 0x%02X\n",
+                r.pwmPct,
                 r.busV[CH_IN], currentA(r, CH_IN), pIn,
                 r.busV[CH_FAN12], currentA(r, CH_FAN12), pFan,
                 pB5in, pB5out,
@@ -314,6 +388,10 @@ void printInfo() {
     Serial.printf("#   %-6s 0x%02X  %5.1f mOhm  %s\n", channels[i].name, channels[i].addr,
                   channels[i].shuntOhms * 1000.0, channels[i].present ? "OK" : "NOT FOUND");
   }
+  Serial.printf("# fan PWM: GPIO");
+  for (int i = 0; i < NUM_FAN_PWM_PINS; i++) Serial.printf(" %d", FAN_PWM_PINS[i]);
+  Serial.printf(", %lu Hz%s, now %.1f %%\n", (unsigned long)FAN_PWM_FREQ_HZ,
+                FAN_PWM_INVERTED ? ", inverted" : "", fanPct);
   if (flashOk) {
     size_t logBytes = 0;
     if (LittleFS.exists(LOG_PATH)) {
@@ -328,6 +406,11 @@ void printInfo() {
     Serial.println("# flash: NOT MOUNTED (check partition scheme has a spiffs partition)");
   }
   Serial.printf("# run %u (next boot/run: %u)\n", runNumber, prefs.getUInt("run", 0) + 1);
+}
+
+void printHelp() {
+  Serial.println("# commands: help, info, header, dump, pause, resume, erase,");
+  Serial.println("#   ramp <seconds> [max_pct] [iin_limit_A], pwm <pct>, stop");
 }
 
 void dumpLog() {
@@ -352,8 +435,9 @@ void dumpLog() {
 void handleCommand(String cmd) {
   cmd.trim();
   cmd.toLowerCase();
+  float a = 0.0, b = 0.0, c = 0.0;
   if (cmd == "help") {
-    Serial.println("# commands: help, info, header, dump, pause, resume, erase");
+    printHelp();
   } else if (cmd == "info") {
     printInfo();
   } else if (cmd == "header") {
@@ -371,8 +455,35 @@ void handleCommand(String cmd) {
     prefs.putUInt("run", 0);
     runNumber = 0;
     flashFull = false;
+    headerWrittenThisBoot = false;
     resetAccum();
     Serial.println("# flash log erased, run counter reset");
+  } else if (cmd == "stop") {
+    fanMode = FAN_HOLD;
+    setFanPct(0.0);
+    Serial.println("# fans stopped (0 %)");
+  } else if (sscanf(cmd.c_str(), "pwm %f", &a) == 1) {
+    fanMode = FAN_HOLD;
+    setFanPct(a);
+    Serial.printf("# fans held at %.1f %%\n", fanPct);
+  } else if (cmd.startsWith("ramp")) {
+    int got = sscanf(cmd.c_str(), "ramp %f %f %f", &a, &b, &c);
+    float seconds = got >= 1 ? a : RAMP_DEFAULT_S;
+    float maxPct = got >= 2 ? b : 100.0;
+    float limitA = got >= 3 ? c : RAMP_IIN_LIMIT_A;
+    if (!channels[CH_IN].present) {
+      Serial.println("# ramp refused: input INA226 not found, so the Iin limit cannot work");
+    } else if (seconds < 1.0 || maxPct <= 0.0) {
+      Serial.println("# ramp refused: need seconds >= 1 and max_pct > 0");
+    } else {
+      rampMaxPct = constrain(maxPct, 0.0f, 100.0f);
+      rampSlopePctPerS = 100.0 / seconds;
+      rampIinLimitA = limitA;
+      lastFanUpdateMs = millis();
+      fanMode = FAN_RAMP_UP;
+      Serial.printf("# ramp: %.1f -> %.1f %% at %.3f %%/s (100 %% per %.0f s), Iin limit %.2f A\n",
+                    fanPct, rampMaxPct, rampSlopePctPerS, seconds, rampIinLimitA);
+    }
   } else {
     Serial.printf("# unknown command '%s' (try help)\n", cmd.c_str());
   }
@@ -384,20 +495,27 @@ void pollSerialCommands() {
     if (c == '\n' || c == '\r') {
       if (cmdBuf.length() > 0) handleCommand(cmdBuf);
       cmdBuf = "";
-    } else if (cmdBuf.length() < 32) {
+    } else if (cmdBuf.length() < 40) {
       cmdBuf += c;
     }
   }
 }
 
 void setup() {
+  // Fan PWM first. From reset until this runs the pin is an undriven input, and a 4-wire
+  // fan's own pull-up reads that as full speed; firmware can shorten that window, not remove it.
+  bool pwmAttachOk[NUM_FAN_PWM_PINS];
+  for (int i = 0; i < NUM_FAN_PWM_PINS; i++) {
+    pwmAttachOk[i] = ledcAttach(FAN_PWM_PINS[i], FAN_PWM_FREQ_HZ, FAN_PWM_BITS);
+  }
+  setFanPct(0.0);
+
   Serial.begin(115200);
   delay(200);
   Serial.println("\n# ==== efficiency_esp32 boot ====");
-
-  if (STATUS_LED_PIN >= 0) {
-    pinMode(STATUS_LED_PIN, OUTPUT);
-    digitalWrite(STATUS_LED_PIN, LOW);
+  for (int i = 0; i < NUM_FAN_PWM_PINS; i++) {
+    if (!pwmAttachOk[i]) Serial.printf("# FAN PWM ERROR: GPIO %d (fan %d) did not attach; that fan is undriven (full speed)\n",
+                                       FAN_PWM_PINS[i], i + 1);
   }
 
   prefs.begin("efflog", false);
@@ -419,15 +537,18 @@ void setup() {
     channels[i].present = readReg(channels[i].addr, REG_MFG_ID, id) && id == 0x5449;
   }
   printInfo();
-  Serial.println("# commands: help, info, header, dump, pause, resume, erase");
+  printHelp();
   Serial.println(csvHeader());
 }
 
 void loop() {
   pollSerialCommands();
+  updateFanRamp();
 
   Row r;
   takeSample(r);
+  lastIinOk = r.ok[CH_IN];
+  if (lastIinOk) lastIinA = currentA(r, CH_IN);
 
   bool inputLive = r.ok[CH_IN] && r.busV[CH_IN] > LOG_MIN_VIN_V;
   if (inputLive && runNumber == 0) startRun();
