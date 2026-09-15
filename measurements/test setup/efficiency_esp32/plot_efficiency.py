@@ -9,11 +9,21 @@ up/down-ramp comparison. --cal applies I = gain * I_nominal + offset per channel
 calibrate_shunts.py; channels without calibration points stay at nominal shunt values.
 
 Efficiency definitions:
-  P_out   = P_fan12 + P_b5in              buck-boost output (fan rail + 5 V buck input)
-  eta_bb  = P_out / P_in                  output current from the 1 mOhm fan-rail shunt
-  eta_alt = (P_fans + P_b5in) / P_in      fan-rail current replaced by the sum of the
-                                          per-fan 10 mOhm shunts (cross-check)
+  P_out     = V_fan12 * I_fans + P_b5in    buck-boost output (fan rail + 5 V buck input), fan-rail
+                                           current from the sum of the ten per-fan 10 mOhm shunts
+  eta       = P_out / P_in
+  eta_fan12 = (P_fan12 + P_b5in) / P_in    fan-rail current from the 1 mOhm fan12 shunt (cross-check)
+The per-fan sum is the output reference because the 1 mOhm fan12 shunt's reading shifted 2.6 %
+relative to it when a DMM was added to the 12 V path (2026-09-15), so a 1 mOhm calibration taken
+with a DMM inserted need not hold in normal operation. If the per-fan channels carry less than
+half the fan-rail current (e.g. a resistor wired straight to the rail), fan12 is used instead.
 The ramp is split into up/down halves at the peak PWM row.
+
+Series resistance in the 12 V path: if the fan-rail voltage sags by more than 50 mOhm x
+(fan-rail + 5 V buck current), something (e.g. a DMM left in series) sits between the converter
+output and the INA226s. Its drop is added back to the fan-rail and 5 V buck bus voltages so P_out
+is the converter's output power, and the run is labelled. (2026-09-15 5 V and 9 V runs: ~0.37 Ohm;
+15 V and 20 V runs without the DMM: 4-6 mOhm.)
 """
 
 import argparse
@@ -35,6 +45,22 @@ GRID = "#e1e0d9"
 AXIS = "#c3c2b7"
 
 CONNECTED_FAN_MIN_A = 0.02   # a per-fan channel counts as connected above this peak current
+SERIES_R_LIMIT_OHM = 0.05    # 12 V path sag above this is corrected and labelled
+TACH_MEDIAN_ROWS = 7         # rolling median for tach speed (older captures have glitch rows)
+
+
+def correct_12v_series_r(df):
+    """Add back the drop of extra series resistance between converter output and INA226s.
+    Returns the resistance removed (0 if below SERIES_R_LIMIT_OHM or not measurable)."""
+    i12 = df["fan12_A"] + df["b5in_A"]
+    if i12.max() - i12.min() < 0.3:
+        return 0.0
+    r = -np.polyfit(i12, df["fan12_V"], 1)[0]
+    if r < SERIES_R_LIMIT_OHM:
+        return 0.0
+    for col in [c for c in df.columns if c.endswith("_V") and c not in ("in_V", "b5out_V")]:
+        df[col] = df[col] + r * i12
+    return r
 
 
 def load(path, cal=None):
@@ -42,20 +68,47 @@ def load(path, cal=None):
     for ch, (gain, offset) in (cal or {}).items():
         if f"{ch}_A" in df:
             df[f"{ch}_A"] = gain * df[f"{ch}_A"] + offset
+    df.attrs["series_r_ohm"] = correct_12v_series_r(df)
     df["t_s"] = (df["t_ms"] - df["t_ms"].iloc[0]) / 1000.0
     for ch in ["in", "fan12", "b5in", "b5out"]:
         df[f"P_{ch}"] = df[f"{ch}_V"] * df[f"{ch}_A"]
     fans = [f"fan{k}" for k in range(1, 11)
             if f"fan{k}_A" in df and df[f"fan{k}_A"].max() > CONNECTED_FAN_MIN_A]
-    df["fans_A"] = sum(df[f"{f}_A"] for f in fans)
-    df["P_fans"] = sum(df[f"{f}_V"] * df[f"{f}_A"] for f in fans)
-    df["P_out"] = df["P_fan12"] + df["P_b5in"]
-    df["eta_bb"] = df["P_out"] / df["P_in"]
-    df["eta_alt"] = (df["P_fans"] + df["P_b5in"]) / df["P_in"]
+    # all ten channels (unconnected ones add their small offsets), matching the fansum calibration
+    df["fans_A"] = df[[f"fan{k}_A" for k in range(1, 11) if f"fan{k}_A" in df]].sum(axis=1)
+    if cal and "fansum" in cal:
+        gain, offset = cal["fansum"]
+        df["fans_A"] = gain * df["fans_A"] + offset
+    df["P_fans"] = df["fan12_V"] * df["fans_A"]
+    use_fans = bool(fans) and df["fans_A"].max() > 0.5 * df["fan12_A"].max()
+    df.attrs["output_ref"] = "per-fan shunts" if use_fans else "fan12 shunt"
+    df["P_out"] = (df["P_fans"] if use_fans else df["P_fan12"]) + df["P_b5in"]
+    df["eta"] = df["P_out"] / df["P_in"]
+    df["eta_fan12"] = (df["P_fan12"] + df["P_b5in"]) / df["P_in"]
     peak = df["pwm_pct"].idxmax()
     df["dir"] = np.where(df.index <= peak, "up", "down")
+    rpm_cols = [c for c in df.columns if c.endswith("_rpm") and df[c].max() > 0]
+    if rpm_cols:
+        smooth = [df.groupby("dir")[c].transform(
+                      lambda s: s.rolling(TACH_MEDIAN_ROWS, center=True, min_periods=3).median())
+                  for c in rpm_cols]
+        df["rpm_median"] = pd.concat(smooth, axis=1).median(axis=1)
+    df.attrs["rpm_cols"] = rpm_cols
     active = df[df["pwm_pct"] > 0]  # drop the 0 % tails before and after the ramp
     return df, active, fans
+
+
+def ramp_slope(active):
+    """PWM %/s of the up half (the ramp may turn around early at the Iin limit)."""
+    up = active[active["dir"] == "up"]
+    return (up["pwm_pct"].max() - up["pwm_pct"].min()) / (up["t_s"].max() - up["t_s"].min())
+
+
+def overlap_grid(active, margin=6.0):
+    """PWM grid covered by both halves, kept `margin` % inside so shifted lookups don't clamp."""
+    lo = max(20.0, active["pwm_pct"].min() + margin)
+    hi = min(95.0, active["pwm_pct"].max() - margin)
+    return np.linspace(lo, hi, 200)
 
 
 def binned(active, x, y, bins):
@@ -75,9 +128,9 @@ def lag_fit(active, slope_pct_per_s, x="pwm_pct", y="fans_A"):
     d = slope * tau, so positive d means lag. Negative d means the up ramp reads high, e.g.
     extra current to accelerate the rotors. Checked against a synthetic 2.0 s first-order
     lag (recovered 1.8 s)."""
-    up = active[active["dir"] == "up"].sort_values(x)
-    dn = active[active["dir"] == "down"].sort_values(x)
-    grid = np.linspace(20, 95, 200)
+    up = active[active["dir"] == "up"].dropna(subset=[y]).sort_values(x)
+    dn = active[active["dir"] == "down"].dropna(subset=[y]).sort_values(x)
+    grid = overlap_grid(active)
     best = min(((d, np.sqrt(np.mean((np.interp(grid + d, up[x], up[y]) -
                                      np.interp(grid - d, dn[x], dn[y])) ** 2)))
                 for d in np.linspace(-5, 5, 401)), key=lambda p: p[1])
@@ -118,16 +171,20 @@ def main(csv_path, cal_paths=None):
         print(f"calibration {ch}: I = {gain:.5f} * I_nominal {offset * 1e3:+.2f} mA")
     df, active, fans = load(csv_path, cal)
     cal_note = f"calibrated: {', '.join(cal)}" if cal else "nominal shunts, uncalibrated"
+    if df.attrs["series_r_ohm"]:
+        cal_note += f"; {df.attrs['series_r_ohm'] * 1e3:.0f} mΩ 12 V series drop added back"
+        print(f"WARNING: 12 V path has {df.attrs['series_r_ohm'] * 1e3:.0f} mOhm extra series resistance "
+              f"(DMM left in?); its drop is added back to the fan-rail and 5 V buck bus voltages")
 
-    t_up = active[active["dir"] == "up"]["t_s"]
-    slope = 100.0 / (t_up.max() - t_up.min())  # PWM %/s of the up half (assumes 0 -> 100 %)
+    slope = ramp_slope(active)
     shift, tau, rms = lag_fit(active, slope)
     k_gain, k_off = np.polyfit(active.loc[active["fans_A"] > 0.1, "fans_A"],
                                active.loc[active["fans_A"] > 0.1, "fan12_A"], 1)
     droop_r, droop_v0 = np.polyfit(active["in_A"], active["in_V"], 1)
     p_bins = np.linspace(active["P_out"].min(), active["P_out"].max(), 13)
-    eta = binned(active, "P_out", "eta_bb", p_bins)
-    eta_alt = binned(active, "P_out", "eta_alt", p_bins)
+    eta = binned(active, "P_out", "eta", p_bins)
+    eta_alt = binned(active, "P_out", "eta_fan12", p_bins)
+    ref = df.attrs["output_ref"]
 
     fig, axes = plt.subplots(2, 3, figsize=(15, 8.5), facecolor=SURFACE)
     fig.suptitle(f"{csv_path.stem}: fans {', '.join(f[3:] for f in fans)} on the fan rail, "
@@ -142,9 +199,9 @@ def main(csv_path, cal_paths=None):
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
 
     ax = axes[0, 1]
-    style(ax, "Buck-boost efficiency, up vs down ramp", "Output power P_fan12 + P_b5in (W)",
-          "Efficiency P_out / P_in")
-    scatter_up_down(ax, active, "P_out", "eta_bb")
+    style(ax, f"Buck-boost efficiency, up vs down ramp (output from {ref})",
+          "Output power, fan rail + 5 V buck input (W)", "Efficiency P_out / P_in")
+    scatter_up_down(ax, active, "P_out", "eta")
     for d, c in [("up", UP_COLOR), ("down", DOWN_COLOR)]:
         b = eta[d]
         ax.errorbar(b["x"], b["mean"], yerr=b["se"], color=c, linewidth=2, marker="o",
@@ -152,8 +209,8 @@ def main(csv_path, cal_paths=None):
                     label=f"{d}, binned mean ± s.e.")
     alt = pd.concat([eta_alt["up"], eta_alt["down"]]).groupby(level=0, observed=True).mean()
     ax.plot(alt["x"], alt["mean"], color=MUTED, linewidth=1.5, linestyle="--",
-            label="both, output from per-fan shunts")
-    ax.set_ylim(0.75, 1.0)
+            label="both, output from 1 mΩ fan12 shunt")
+    ax.set_ylim(0.75, 1.02)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="lower right")
 
     ax = axes[0, 2]
@@ -187,17 +244,16 @@ def main(csv_path, cal_paths=None):
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2)
 
     ax = axes[1, 2]
-    rpm_cols = [c for c in df.columns if c.endswith("_rpm") and df[c].max() > 0]
+    rpm_cols = df.attrs["rpm_cols"]
     rpm_fit = None
     if rpm_cols:
-        active = active.assign(rpm_mean=active[rpm_cols].mean(axis=1))
-        rpm_fit = lag_fit(active, slope, y="rpm_mean")
+        rpm_fit = lag_fit(active, slope, y="rpm_median")
         names = ", ".join(c[3:-4] for c in rpm_cols)
         style(ax, "Tach speed vs PWM (settling check)", "PWM duty (%)",
-              f"Mean speed, fans {names} (rpm)")
+              f"Speed, median of fans {names}, {TACH_MEDIAN_ROWS}-row median (rpm)")
         for d, c in [("up", UP_COLOR), ("down", DOWN_COLOR)]:
             sub = active[active["dir"] == d]
-            ax.plot(sub["pwm_pct"], sub["rpm_mean"], color=c, linewidth=1.5, label=f"{d} ramp")
+            ax.plot(sub["pwm_pct"], sub["rpm_median"], color=c, linewidth=1.5, label=f"{d} ramp")
         ax.text(0.03, 0.97, lag_text(rpm_fit, lambda v: f"{v:.0f} rpm"),
                 transform=ax.transAxes, va="top", fontsize=8, color=INK_2)
         ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="lower right")
@@ -217,19 +273,19 @@ def main(csv_path, cal_paths=None):
 
     # --- printed summary ---
     print(f"\nconnected fans: {fans}; ramp slope {slope:.3f} %/s; rows {len(active)}")
-    print(f"eta_bb up vs down (bins of P_out):")
+    print(f"eta (output from {ref}) up vs down (bins of P_out):")
     cmp = pd.DataFrame({"P_out_W": eta["up"]["x"], "up": eta["up"]["mean"],
                         "down": eta["down"]["mean"],
                         "up_minus_down": eta["up"]["mean"] - eta["down"]["mean"],
                         "se_diff": np.sqrt(eta["up"]["se"] ** 2 + eta["down"]["se"] ** 2),
-                        "eta_alt": alt["mean"]})
+                        "eta_fan12": alt["mean"]})
     print(cmp.round(4).to_string(index=False))
-    grid = np.linspace(20, 95, 200)
+    grid = overlap_grid(active, margin=0.0)
     up_s = active[active["dir"] == "up"].sort_values("pwm_pct")
     dn_s = active[active["dir"] == "down"].sort_values("pwm_pct")
     mean_diff = np.mean(np.interp(grid, up_s["pwm_pct"], up_s["fans_A"]) -
                         np.interp(grid, dn_s["pwm_pct"], dn_s["fans_A"]))
-    print(f"fan current, same PWM (20-95 %): up minus down {mean_diff * 1e3:+.2f} mA; "
+    print(f"fan current, same PWM ({grid[0]:.0f}-{grid[-1]:.0f} %): up minus down {mean_diff * 1e3:+.2f} mA; "
           f"overlay offset {2 * shift:+.2f} % PWM, tau {tau:+.2f} s (+ = lag), residual {rms * 1e3:.2f} mA rms")
     if rpm_fit:
         print(f"tach speed: overlay offset {2 * rpm_fit[0]:+.2f} % PWM, tau {rpm_fit[1]:+.2f} s (+ = lag), "

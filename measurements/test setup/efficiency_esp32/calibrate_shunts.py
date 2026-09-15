@@ -7,7 +7,14 @@ calibrate_shunts.py -- calibrate INA226 current channels against a DMM in series
 Run from the repo root with the venv active (efficiency_esp32.ino on the board, VBUS-cut cable):
   python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" run COM5 in
   python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" run COM5 fan12 fan1
+  python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" run COM5 fan12 --dmm-also b5in
   python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" fit measurements/efficiency/*_shunt_cal_*.csv
+
+Every channel listed after the port must carry exactly the DMM current. If the DMM also carries
+current that another INA226 measures (e.g. DMM in the 12 V output before the 5 V buck tap), name
+that channel with --dmm-also; its reading is subtracted from the DMM value before fitting.
+For point files recorded without that, append ::<channels> to the file name when fitting,
+e.g.  some_shunt_cal_fan12.csv::b5in
 
 Each point: set up the supply, load and DMM range; the script opens the port, sends an optional
 sketch command (e.g. "pwm 60"), skips ~3 s of settling, then averages ~8 s of INA226 rows while
@@ -34,11 +41,19 @@ from efficiency_logger import OUT_DIR, open_port, read_line, send
 
 NOMINAL_SHUNT_OHMS = {"in": 0.001, "fan12": 0.001, "b5in": 0.033, "b5out": 0.010,
                       **{f"fan{k}": 0.010 for k in range(1, 11)}}
+# Virtual channel: sum of all ten per-fan channels. Fitted from every point whose DMM carried the
+# whole fan-rail current (points listing fan12), however the fans were split across headers.
+# Preferred output reference: on 2026-09-15 the 1 mOhm fan12 shunt read 2.6 % differently
+# relative to the per-fan 10 mOhm shunts with the DMM in the 12 V path than without it, so its
+# calibration did not carry over to normal operation.
+FANSUM_CHANNELS = [f"fan{k}" for k in range(1, 11)]
+FANSUM_SHUNT_OHMS = 0.010
 INA226_SHUNT_LSB_V = 2.5e-6
 SETTLE_ROWS = 10        # ~3.4 s skipped after the port opens or a sketch command
 AVERAGE_ROWS = 24       # ~8 s averaged; read the DMM during this window
 MAX_TIMEOUTS = 5        # consecutive 1 s serial timeouts before giving up on a point
 DMM_WEIGHT_PCT = 0.5    # assumed DMM proportional error; only weights the fit, not a spec
+MAX_GAIN_DEVIATION = 0.25  # fits further than this from gain 1 are reported but never applied
 RANGE_UNITS = {"400ma": "ma", "10a": "a", "none": "a"}  # unit assumed when none is typed
 
 PLAN_INPUT = """
@@ -60,6 +75,9 @@ PLAN_FAN_RAIL = """
 Fan-rail shunt ('fan12', plus the per-fan channel of the header you use, e.g. 'fan1'):
   DMM in series with the load on ONE header, nothing else on the fan rail, so the DMM carries
   the whole fan-rail current. Remove the load before changing the DMM range (board can stay on).
+  Only list a per-fan channel if ALL the DMM current goes through that one header. If the DMM
+  sits in the 12 V output before the 5 V buck tap, it also carries the 5 V buck input: add
+  --dmm-also b5in.
   Suggested points:
     none range    nothing connected, enter 0            pins the offset
     400mA range   one fan, pwm 40 / pwm 70 / pwm 100    ~25 / ~70 / ~150 mA
@@ -136,15 +154,38 @@ def summarize(data):
     return rec
 
 
+def dmm_minus_also(points):
+    """DMM current minus the channels listed in dmm_also (current that bypasses the fitted shunt)."""
+    ref = points["dmm_A"].copy()
+    if "dmm_also" not in points:
+        return ref
+    for idx, also in points["dmm_also"].fillna("").items():
+        for other in str(also).split():
+            ref[idx] -= points.at[idx, f"{other}_A"]
+    return ref
+
+
+def add_fansum(points):
+    """Add fansum_A (+ _std) = sum of the per-fan channels, if the point file has them."""
+    cols = [f"{c}_A" for c in FANSUM_CHANNELS if f"{c}_A" in points]
+    if len(cols) == len(FANSUM_CHANNELS):
+        points = points.assign(fansum_A=points[cols].sum(axis=1),
+                               fansum_A_std=np.sqrt((points[[f"{c}_std" for c in cols]] ** 2).sum(axis=1)))
+    return points
+
+
 def fit_channel(points, ch):
-    """Weighted least squares of dmm_A on <ch>_A. Returns (gain, offset, table) or None."""
+    """Weighted least squares of (dmm_A - dmm_also) on <ch>_A. Returns (gain, offset, table) or None."""
+    points = add_fansum(points)
     if f"{ch}_A" not in points:
         return None
-    sel = points[points["channels"].str.split().apply(lambda c: ch in c)]
+    carrier = "fan12" if ch == "fansum" else ch
+    sel = points[points["channels"].str.split().apply(lambda c: carrier in c)]
     sel = sel.dropna(subset=[f"{ch}_A", "dmm_A"])
     if len(sel) < 2:
         return None
-    lsb = INA226_SHUNT_LSB_V / NOMINAL_SHUNT_OHMS[ch]
+    sel = sel.assign(dmm_A=dmm_minus_also(sel))
+    lsb = INA226_SHUNT_LSB_V / NOMINAL_SHUNT_OHMS.get(ch, FANSUM_SHUNT_OHMS)
     sigma = np.sqrt((DMM_WEIGHT_PCT / 100 * sel["dmm_A"]) ** 2 + (sel["dmm_res_A"] / 2) ** 2
                     + sel["dmm_spread_A"] ** 2
                     + (sel[f"{ch}_A_std"].fillna(0) / np.sqrt(sel["n_rows"])) ** 2 + lsb ** 2 / 12)
@@ -166,25 +207,56 @@ def print_fits(points, channels):
             print(f"  {ch}: need 2+ points to fit")
             continue
         gain, offset, table = result
-        print(f"\n  {ch}: I_true = {gain:.5f} * I_nominal {offset * 1e3:+.2f} mA   "
-              f"(effective shunt {NOMINAL_SHUNT_OHMS[ch] / gain * 1e3:.4f} mOhm vs "
-              f"{NOMINAL_SHUNT_OHMS[ch] * 1e3:g} nominal)")
+        flag = ("   <- IMPLAUSIBLE, not applied: did all the DMM current go through this channel?"
+                if abs(gain - 1) > MAX_GAIN_DEVIATION else "")
+        r_nom = NOMINAL_SHUNT_OHMS.get(ch, FANSUM_SHUNT_OHMS)
+        what = "per-fan shunts, summed" if ch == "fansum" else \
+            f"effective shunt {r_nom / gain * 1e3:.4f} mOhm vs {r_nom * 1e3:g} nominal"
+        print(f"\n  {ch}: I_true = {gain:.5f} * I_nominal {offset * 1e3:+.2f} mA   ({what}){flag}")
         print(table.round(3).to_string(index=False))
 
 
-def load_calibration(paths):
-    """{channel: (gain, offset)} fitted from one or more point files."""
-    points = pd.concat([pd.read_csv(p) for p in paths], ignore_index=True)
-    channels = sorted({c for cs in points["channels"] for c in cs.split()})
+def read_points(specs):
+    """Concatenate point files. 'file.csv::b5in' sets dmm_also=b5in for that file's points."""
+    frames = []
+    for spec in specs:
+        path, _, also = str(spec).partition("::")
+        df = pd.read_csv(path)
+        if also:
+            df["dmm_also"] = also.replace(",", " ")
+        frames.append(df)
+    return pd.concat(frames, ignore_index=True)
+
+
+def point_channels(points):
+    """Channels to fit: those listed, plus fansum when a whole-fan-rail (fan12) session exists."""
+    channels = {c for cs in points["channels"] for c in cs.split()}
+    if "fan12" in channels:
+        channels.add("fansum")
+    return sorted(channels)
+
+
+def load_calibration(specs):
+    """{channel: (gain, offset)} fitted from one or more point files (see read_points)."""
+    points = read_points(specs)
+    channels = point_channels(points)
     cal = {}
     for ch in channels:
         result = fit_channel(points, ch)
-        if result is not None:
-            cal[ch] = result[:2]
+        if result is None:
+            continue
+        if abs(result[0] - 1) > MAX_GAIN_DEVIATION:
+            print(f"calibration {ch}: gain {result[0]:.3f} is implausible, not applied")
+            continue
+        cal[ch] = result[:2]
     return cal
 
 
-def run(port, channels):
+def run(port, channels, dmm_also=()):
+    per_fan = [c for c in channels if c.startswith("fan") and c != "fan12"]
+    if len(per_fan) > 1:
+        sys.exit(f"List at most one per-fan channel ({', '.join(per_fan)} given): each listed channel "
+                 "must carry the whole DMM current, which only one header can.")
     stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     path = OUT_DIR / f"{stamp}_shunt_cal_{'_'.join(channels)}.csv"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -238,11 +310,12 @@ def run(port, channels):
             continue
 
         rec.update({"time": datetime.now().isoformat(timespec="seconds"), "channels": " ".join(channels),
-                    "sketch_cmd": command, "dmm_range": rng, "dmm_A": dmm_A, "dmm_res_A": res_A,
-                    "dmm_spread_A": spread_A})
+                    "dmm_also": " ".join(dmm_also), "sketch_cmd": command, "dmm_range": rng,
+                    "dmm_A": dmm_A, "dmm_res_A": res_A, "dmm_spread_A": spread_A})
         points.append(rec)
         df = pd.DataFrame(points)
-        front = ["time", "channels", "sketch_cmd", "dmm_range", "dmm_A", "dmm_res_A", "dmm_spread_A", "n_rows"]
+        front = ["time", "channels", "dmm_also", "sketch_cmd", "dmm_range", "dmm_A", "dmm_res_A",
+                 "dmm_spread_A", "n_rows"]
         df[front + [c for c in df.columns if c not in front]].to_csv(path, index=False)
         print_fits(df, channels)
 
@@ -256,16 +329,17 @@ def main():
     p_run = sub.add_parser("run")
     p_run.add_argument("port")
     p_run.add_argument("channels", nargs="+", choices=sorted(NOMINAL_SHUNT_OHMS))
+    p_run.add_argument("--dmm-also", nargs="+", default=[], choices=sorted(NOMINAL_SHUNT_OHMS),
+                       help="channels whose current also flows through the DMM (subtracted)")
     p_fit = sub.add_parser("fit")
-    p_fit.add_argument("files", nargs="+")
+    p_fit.add_argument("files", nargs="+", help="point files; file.csv::b5in marks dmm_also for that file")
     args = parser.parse_args()
 
     if args.action == "run":
-        run(args.port, args.channels)
+        run(args.port, args.channels, args.dmm_also)
     else:
-        points = pd.concat([pd.read_csv(p) for p in args.files], ignore_index=True)
-        channels = sorted({c for cs in points["channels"] for c in cs.split()})
-        print_fits(points, channels)
+        points = read_points(args.files)
+        print_fits(points, point_channels(points))
 
 
 if __name__ == "__main__":

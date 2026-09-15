@@ -20,8 +20,8 @@
 //   pwm <pct>                                hold a fixed fan duty
 //   stop                                     fans to 0 %
 //
-// CSV columns: run, t_ms, n (samples averaged), flags, pwm_pct, fan1..4_rpm (tach, same
-// window as the INA226 readings; 0 = fewer than 2 tach edges), then per channel <name>_V
+// CSV columns: run, t_ms, n (samples averaged), flags, pwm_pct, fan1..4_rpm (tach, median
+// interval in the same window as the INA226 readings; 0 = too few edges), then per channel <name>_V
 // (bus), <name>_uV (shunt), <name>_A (nominal shunt). All voltages are INA226 bus readings.
 // Recompute currents from *_uV with calibrated shunt values in analysis; the _A columns are
 // for quick looks. The flash log repeats the header at each boot.
@@ -50,11 +50,13 @@ const float RAMP_DEFAULT_S = 120.0;
 const float RAMP_IIN_LIMIT_A = 3.0;      // default turn-around current (USB PD 3 A)
 
 // --- FAN TACH ---
-// Speed is timed from the first to the last tach edge inside each INA226 conversion window,
-// so it covers the same interval as the power readings. Flash writes happen between
-// windows, so an edge delayed by one is never the window's first edge.
+// Speed is the median tach edge-to-edge interval inside each INA226 conversion window, so it
+// covers the same interval as the power readings. The median ignores the occasional extra
+// (noise) or missed edge; the 2026-09-15 captures timed first-to-last edge and ~10-15 % of
+// rows jumped >300 rpm. Flash writes happen between windows, so no interval spans one.
 const float TACH_PULSES_PER_REV = 2.0;   // standard PC fan tach
 const uint32_t TACH_MIN_EDGE_US = 2000;  // glitch filter: 2 ms = 15000 rpm at 2 pulses/rev
+const int TACH_MAX_INTERVALS = 64;       // per window; 3000 rpm gives ~28 in 282 ms
 
 // --- INA226 CHANNELS ---
 #define MAX_CHANNELS 14
@@ -162,10 +164,10 @@ float lastIinA = 0.0;
 bool lastIinOk = false;
 
 struct TachState {
-  uint32_t prevUs;   // last accepted edge, for the glitch filter
-  uint32_t firstUs;  // first edge in the current window
-  uint32_t lastUs;   // latest edge in the current window
-  uint32_t edges;    // edges in the current window
+  uint32_t prevUs;                          // last accepted edge
+  bool havePrev;                            // an edge has been accepted in this window
+  uint8_t count;                            // intervals stored in this window
+  uint32_t intervalUs[TACH_MAX_INTERVALS];
 };
 TachState tach[NUM_TACH];
 portMUX_TYPE tachMux = portMUX_INITIALIZER_UNLOCKED;
@@ -175,32 +177,48 @@ void IRAM_ATTR onTachEdge(void *arg) {
   TachState &s = tach[(intptr_t)arg];
   uint32_t now = (uint32_t)esp_timer_get_time();
   portENTER_CRITICAL_ISR(&tachMux);
-  if (now - s.prevUs >= TACH_MIN_EDGE_US) {
+  if (!s.havePrev) {
     s.prevUs = now;
-    if (s.edges == 0) s.firstUs = now;
-    s.lastUs = now;
-    s.edges++;
+    s.havePrev = true;
+  } else if (now - s.prevUs >= TACH_MIN_EDGE_US) {
+    if (s.count < TACH_MAX_INTERVALS) s.intervalUs[s.count++] = now - s.prevUs;
+    s.prevUs = now;
   }
   portEXIT_CRITICAL_ISR(&tachMux);
 }
 
 void tachStartWindow() {
   portENTER_CRITICAL(&tachMux);
-  for (int k = 0; k < NUM_TACH; k++) tach[k].edges = 0;
+  for (int k = 0; k < NUM_TACH; k++) {
+    tach[k].havePrev = false;
+    tach[k].count = 0;
+  }
   portEXIT_CRITICAL(&tachMux);
 }
 
-// rpm from whole tach periods in the window; 0 if fewer than 2 edges (below ~90 rpm)
+// rpm from the median edge interval in the window; 0 if fewer than 2 intervals (below ~200 rpm)
 void tachEndWindow(Row &r) {
-  TachState snap[NUM_TACH];
+  static TachState snap[NUM_TACH];  // static: keeps ~1 kB of intervals off the loop stack
   portENTER_CRITICAL(&tachMux);
   for (int k = 0; k < NUM_TACH; k++) snap[k] = tach[k];
   portEXIT_CRITICAL(&tachMux);
   for (int k = 0; k < NUM_TACH; k++) {
-    uint32_t spanUs = snap[k].lastUs - snap[k].firstUs;
-    r.rpm[k] = (snap[k].edges >= 2 && spanUs > 0)
-                 ? (snap[k].edges - 1) * 60.0e6f / (TACH_PULSES_PER_REV * spanUs)
-                 : 0.0f;
+    int n = snap[k].count;
+    uint32_t *v = snap[k].intervalUs;
+    for (int i = 1; i < n; i++) {  // insertion sort, n <= 64
+      uint32_t x = v[i];
+      int j = i - 1;
+      while (j >= 0 && v[j] > x) {
+        v[j + 1] = v[j];
+        j--;
+      }
+      v[j + 1] = x;
+    }
+    r.rpm[k] = 0.0f;
+    if (n >= 2) {
+      float medianUs = (n % 2) ? v[n / 2] : 0.5f * ((float)v[n / 2 - 1] + v[n / 2]);
+      r.rpm[k] = 60.0e6f / (TACH_PULSES_PER_REV * medianUs);
+    }
   }
 }
 
