@@ -20,7 +20,8 @@
 //   pwm <pct>                                hold a fixed fan duty
 //   stop                                     fans to 0 %
 //
-// CSV columns: run, t_ms, n (samples averaged), flags, pwm_pct, then per channel <name>_V
+// CSV columns: run, t_ms, n (samples averaged), flags, pwm_pct, fan1..4_rpm (tach, same
+// window as the INA226 readings; 0 = fewer than 2 tach edges), then per channel <name>_V
 // (bus), <name>_uV (shunt), <name>_A (nominal shunt). All voltages are INA226 bus readings.
 // Recompute currents from *_uV with calibrated shunt values in analysis; the _A columns are
 // for quick looks. The flash log repeats the header at each boot.
@@ -38,13 +39,22 @@ const int I2C_SCL_PIN = 22;        // Feather ESP32 default SCL
 // holds them high, which matches their default strap state.
 const int FAN_PWM_PINS[] = {13, 27, 33, 15, 32, 14, 26, 25, 4, 5};
 const int NUM_FAN_PWM_PINS = sizeof(FAN_PWM_PINS) / sizeof(FAN_PWM_PINS[0]);
-const bool FAN_PWM_INVERTED = false; // true if the GPIO drives the fan PWM through an inverting transistor
+const bool FAN_PWM_INVERTED = false; // GPIO drives the fan PWM pins directly
+const int TACH_PINS[] = {17, 16, 19, 18};  // tach for fans 1..4 (open-drain from the fan)
+const int NUM_TACH = sizeof(TACH_PINS) / sizeof(TACH_PINS[0]);
 
 // --- FAN PWM ---
 const uint32_t FAN_PWM_FREQ_HZ = 25000;  // Intel 4-wire fan PWM frequency
 const uint8_t FAN_PWM_BITS = 10;
 const float RAMP_DEFAULT_S = 120.0;
 const float RAMP_IIN_LIMIT_A = 3.0;      // default turn-around current (USB PD 3 A)
+
+// --- FAN TACH ---
+// Speed is timed from the first to the last tach edge inside each INA226 conversion window,
+// so it covers the same interval as the power readings. Flash writes happen between
+// windows, so an edge delayed by one is never the window's first edge.
+const float TACH_PULSES_PER_REV = 2.0;   // standard PC fan tach
+const uint32_t TACH_MIN_EDGE_US = 2000;  // glitch filter: 2 ms = 15000 rpm at 2 pulses/rev
 
 // --- INA226 CHANNELS ---
 #define MAX_CHANNELS 14
@@ -114,6 +124,7 @@ struct Row {
   uint16_t n;
   uint8_t flags;
   float pwmPct;
+  float rpm[NUM_TACH];
   float busV[MAX_CHANNELS];
   float shuntUV[MAX_CHANNELS];
   bool ok[MAX_CHANNELS];
@@ -121,6 +132,7 @@ struct Row {
 
 struct Accum {
   double pwmPct;
+  double rpm[NUM_TACH];
   double busV[MAX_CHANNELS];
   double shuntUV[MAX_CHANNELS];
   uint16_t nCh[MAX_CHANNELS];
@@ -149,7 +161,49 @@ unsigned long lastFanUpdateMs = 0;
 float lastIinA = 0.0;
 bool lastIinOk = false;
 
+struct TachState {
+  uint32_t prevUs;   // last accepted edge, for the glitch filter
+  uint32_t firstUs;  // first edge in the current window
+  uint32_t lastUs;   // latest edge in the current window
+  uint32_t edges;    // edges in the current window
+};
+TachState tach[NUM_TACH];
+portMUX_TYPE tachMux = portMUX_INITIALIZER_UNLOCKED;
+
 // --- HELPER FUNCTIONS ---
+void IRAM_ATTR onTachEdge(void *arg) {
+  TachState &s = tach[(intptr_t)arg];
+  uint32_t now = (uint32_t)esp_timer_get_time();
+  portENTER_CRITICAL_ISR(&tachMux);
+  if (now - s.prevUs >= TACH_MIN_EDGE_US) {
+    s.prevUs = now;
+    if (s.edges == 0) s.firstUs = now;
+    s.lastUs = now;
+    s.edges++;
+  }
+  portEXIT_CRITICAL_ISR(&tachMux);
+}
+
+void tachStartWindow() {
+  portENTER_CRITICAL(&tachMux);
+  for (int k = 0; k < NUM_TACH; k++) tach[k].edges = 0;
+  portEXIT_CRITICAL(&tachMux);
+}
+
+// rpm from whole tach periods in the window; 0 if fewer than 2 edges (below ~90 rpm)
+void tachEndWindow(Row &r) {
+  TachState snap[NUM_TACH];
+  portENTER_CRITICAL(&tachMux);
+  for (int k = 0; k < NUM_TACH; k++) snap[k] = tach[k];
+  portEXIT_CRITICAL(&tachMux);
+  for (int k = 0; k < NUM_TACH; k++) {
+    uint32_t spanUs = snap[k].lastUs - snap[k].firstUs;
+    r.rpm[k] = (snap[k].edges >= 2 && spanUs > 0)
+                 ? (snap[k].edges - 1) * 60.0e6f / (TACH_PULSES_PER_REV * spanUs)
+                 : 0.0f;
+  }
+}
+
 void setFanPct(float pct) {
   fanPct = constrain(pct, 0.0f, 100.0f);
   uint32_t maxDuty = (1UL << FAN_PWM_BITS) - 1;  // ledcWrite treats maxDuty as fully on
@@ -236,6 +290,7 @@ void takeSample(Row &r) {
       }
     }
   }
+  tachStartWindow();
 
   unsigned long t0 = millis();
   unsigned long timeoutMs = CONVERSION_MS * 3 / 2 + 50;
@@ -252,6 +307,7 @@ void takeSample(Row &r) {
       }
     }
   }
+  tachEndWindow(r);
   if (pending > 0) r.flags |= FLAG_NOT_READY;
 
   for (int i = 0; i < NUM_CHANNELS; i++) {
@@ -282,6 +338,7 @@ void addToAccum(const Row &r) {
     accum.nCh[i]++;
   }
   accum.pwmPct += r.pwmPct;
+  for (int k = 0; k < NUM_TACH; k++) accum.rpm[k] += r.rpm[k];
   accum.n++;
   accum.flags |= r.flags;
 }
@@ -291,6 +348,7 @@ void accumToRow(Row &r) {
   r.n = accum.n;
   r.flags = accum.flags;
   r.pwmPct = accum.n > 0 ? accum.pwmPct / accum.n : 0.0;
+  for (int k = 0; k < NUM_TACH; k++) r.rpm[k] = accum.n > 0 ? accum.rpm[k] / accum.n : 0.0;
   for (int i = 0; i < NUM_CHANNELS; i++) {
     r.ok[i] = accum.nCh[i] > 0;
     if (r.ok[i]) {
@@ -303,6 +361,9 @@ void accumToRow(Row &r) {
 
 String csvHeader() {
   String h = "run,t_ms,n,flags,pwm_pct";
+  for (int k = 0; k < NUM_TACH; k++) {
+    h += ",fan"; h += String(k + 1); h += "_rpm";
+  }
   for (int i = 0; i < NUM_CHANNELS; i++) {
     h += ","; h += channels[i].name; h += "_V";
     h += ","; h += channels[i].name; h += "_uV";
@@ -319,6 +380,9 @@ String rowToCsv(const Row &r) {
   s += String(r.n); s += ',';
   s += String(r.flags); s += ',';
   s += String(r.pwmPct, 2);
+  for (int k = 0; k < NUM_TACH; k++) {
+    s += ','; s += String(r.rpm[k], 1);
+  }
   for (int i = 0; i < NUM_CHANNELS; i++) {
     if (r.ok[i]) {
       s += ','; s += String(r.busV[i], 4);
@@ -369,7 +433,9 @@ void printStatus(const Row &r) {
   float pFan = powerW(r, CH_FAN12);
   float pB5in = powerW(r, CH_B5IN);
   float pB5out = powerW(r, CH_B5OUT);
-  Serial.printf("# pwm %.1f %% | in %.3f V %.3f A %.2f W | fan12 %.3f V %.3f A %.2f W | 5V buck in %.3f W out %.3f W | "
+  Serial.printf("# rpm");
+  for (int k = 0; k < NUM_TACH; k++) Serial.printf(" %.0f", r.rpm[k]);
+  Serial.printf(" | pwm %.1f %% | in %.3f V %.3f A %.2f W | fan12 %.3f V %.3f A %.2f W | 5V buck in %.3f W out %.3f W | "
                 "eta_bb %.3f  fan/in %.3f  eta_5v %.3f | run %u flags 0x%02X\n",
                 r.pwmPct,
                 r.busV[CH_IN], currentA(r, CH_IN), pIn,
@@ -392,6 +458,9 @@ void printInfo() {
   for (int i = 0; i < NUM_FAN_PWM_PINS; i++) Serial.printf(" %d", FAN_PWM_PINS[i]);
   Serial.printf(", %lu Hz%s, now %.1f %%\n", (unsigned long)FAN_PWM_FREQ_HZ,
                 FAN_PWM_INVERTED ? ", inverted" : "", fanPct);
+  Serial.printf("# fan tach (fans 1..%d): GPIO", NUM_TACH);
+  for (int k = 0; k < NUM_TACH; k++) Serial.printf(" %d", TACH_PINS[k]);
+  Serial.printf(", %.0f pulses/rev\n", TACH_PULSES_PER_REV);
   if (flashOk) {
     size_t logBytes = 0;
     if (LittleFS.exists(LOG_PATH)) {
@@ -509,6 +578,12 @@ void setup() {
     pwmAttachOk[i] = ledcAttach(FAN_PWM_PINS[i], FAN_PWM_FREQ_HZ, FAN_PWM_BITS);
   }
   setFanPct(0.0);
+
+  // Internal pull-ups (~45 k) as a fallback; fine alongside a board pull-up to 3.3 V.
+  for (int k = 0; k < NUM_TACH; k++) {
+    pinMode(TACH_PINS[k], INPUT_PULLUP);
+    attachInterruptArg(digitalPinToInterrupt(TACH_PINS[k]), onTachEdge, (void *)(intptr_t)k, FALLING);
+  }
 
   Serial.begin(115200);
   delay(200);
