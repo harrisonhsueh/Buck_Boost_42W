@@ -2,10 +2,13 @@
 plot_efficiency.py -- plot a fan-PWM-ramp capture from efficiency_logger.py
 
   python "measurements/test setup/efficiency_esp32/plot_efficiency.py" measurements/efficiency/<capture>.csv
+  python "measurements/test setup/efficiency_esp32/plot_efficiency.py" <capture>.csv --cal <shunt_cal files>
 
-Saves <capture>.png next to the CSV and prints the up/down-ramp comparison.
+Saves <capture>.png (or <capture>_cal.png with --cal) next to the CSV and prints the
+up/down-ramp comparison. --cal applies I = gain * I_nominal + offset per channel, fitted by
+calibrate_shunts.py; channels without calibration points stay at nominal shunt values.
 
-Efficiency definitions (INA226 nominal shunt values, no calibration applied yet):
+Efficiency definitions:
   P_out   = P_fan12 + P_b5in              buck-boost output (fan rail + 5 V buck input)
   eta_bb  = P_out / P_in                  output current from the 1 mOhm fan-rail shunt
   eta_alt = (P_fans + P_b5in) / P_in      fan-rail current replaced by the sum of the
@@ -13,12 +16,14 @@ Efficiency definitions (INA226 nominal shunt values, no calibration applied yet)
 The ramp is split into up/down halves at the peak PWM row.
 """
 
-import sys
+import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+from calibrate_shunts import load_calibration
 
 UP_COLOR = "#2a78d6"
 DOWN_COLOR = "#eb6834"
@@ -32,8 +37,11 @@ AXIS = "#c3c2b7"
 CONNECTED_FAN_MIN_A = 0.02   # a per-fan channel counts as connected above this peak current
 
 
-def load(path):
+def load(path, cal=None):
     df = pd.read_csv(path)
+    for ch, (gain, offset) in (cal or {}).items():
+        if f"{ch}_A" in df:
+            df[f"{ch}_A"] = gain * df[f"{ch}_A"] + offset
     df["t_s"] = (df["t_ms"] - df["t_ms"].iloc[0]) / 1000.0
     for ch in ["in", "fan12", "b5in", "b5out"]:
         df[f"P_{ch}"] = df[f"{ch}_V"] * df[f"{ch}_A"]
@@ -103,9 +111,13 @@ def scatter_up_down(ax, active, x, y, **kw):
         ax.scatter(sub[x], sub[y], s=6, color=c, alpha=0.35, linewidths=0, **kw)
 
 
-def main(csv_path):
+def main(csv_path, cal_paths=None):
     csv_path = Path(csv_path)
-    df, active, fans = load(csv_path)
+    cal = load_calibration(cal_paths) if cal_paths else {}
+    for ch, (gain, offset) in cal.items():
+        print(f"calibration {ch}: I = {gain:.5f} * I_nominal {offset * 1e3:+.2f} mA")
+    df, active, fans = load(csv_path, cal)
+    cal_note = f"calibrated: {', '.join(cal)}" if cal else "nominal shunts, uncalibrated"
 
     t_up = active[active["dir"] == "up"]["t_s"]
     slope = 100.0 / (t_up.max() - t_up.min())  # PWM %/s of the up half (assumes 0 -> 100 %)
@@ -120,7 +132,7 @@ def main(csv_path):
     fig, axes = plt.subplots(2, 3, figsize=(15, 8.5), facecolor=SURFACE)
     fig.suptitle(f"{csv_path.stem}: fans {', '.join(f[3:] for f in fans)} on the fan rail, "
                  f"Vin {active['in_V'].max():.2f}-{active['in_V'].min():.2f} V, "
-                 f"ramp {slope:.2f} %/s", x=0.01, ha="left", fontsize=12, color=INK)
+                 f"ramp {slope:.2f} %/s ({cal_note})", x=0.01, ha="left", fontsize=12, color=INK)
 
     ax = axes[0, 0]
     style(ax, "Fan PWM ramp", "Time (s)", "PWM duty (%)")
@@ -199,7 +211,7 @@ def main(csv_path):
         ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="lower right", markerscale=3)
 
     fig.tight_layout(rect=[0, 0, 1, 0.96])
-    out = csv_path.with_suffix(".png")
+    out = csv_path.with_name(csv_path.stem + ("_cal" if cal else "") + ".png")
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     print(f"Saved {out}")
 
@@ -229,4 +241,8 @@ def main(csv_path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("csv")
+    parser.add_argument("--cal", nargs="+", help="shunt calibration point files from calibrate_shunts.py")
+    args = parser.parse_args()
+    main(args.csv, args.cal)
