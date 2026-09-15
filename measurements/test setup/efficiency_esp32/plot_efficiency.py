@@ -209,7 +209,7 @@ def main(csv_path, cal_paths=None):
                     label=f"{d}, binned mean ± s.e.")
     alt = pd.concat([eta_alt["up"], eta_alt["down"]]).groupby(level=0, observed=True).mean()
     ax.plot(alt["x"], alt["mean"], color=MUTED, linewidth=1.5, linestyle="--",
-            label="both, output from 1 mΩ fan12 shunt")
+            label="cross-check, up + down: output from 1 mΩ fan12 shunt")
     ax.set_ylim(0.75, 1.02)
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="lower right")
 
