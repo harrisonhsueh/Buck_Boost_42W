@@ -1,0 +1,33 @@
+Part_Number,Quantity,VGS_V,Value,Unit,Condition,Source,Uncertainty,Method,Use
+CSD17577Q5A,Vplateau,,2.7,V,"VDS=15 V, ID=18 A",SLPS516 Figure 4 (Gate Charge),+/-0.2 V,read by eye from rendered page,loss model (switching)
+AON6512,Vplateau,,3.0,V,"VDS=15 V, ID=20 A",Rev 2.1 Figure 7 (Gate-Charge),+/-0.3 V (plateau slopes ~2.5-3.3 V),read by eye from rendered page,loss model (switching)
+AON6152,Vplateau,,3.0,V,"VDS=22.5 V, ID=20 A",Rev 2.0 Figure 7 (Gate-Charge),+/-0.2 V,read by eye from rendered page,loss model (switching)
+AON6354,Vplateau,,3.0,V,"VDS=15 V, ID=20 A",Rev 2.0 Figure 7 (Gate-Charge),+/-0.3 V (plateau slopes ~2.7-3.3 V),read by eye from rendered page,loss model (switching)
+AON6414A,Vplateau,,3.1,V,"VDS=15 V, ID=20 A",Rev 4.1 Figure 7 (Gate-Charge),+/-0.3 V (plateau slopes ~2.8-3.5 V),read by eye from rendered page,loss model (switching)
+TPH1R104PB,Vplateau,,5.3,V,"ID=120 A",Rev 8.0 Fig. 8.14,+/-0.2 V; at 120 A so higher than at 3 A,read by eye from rendered page,loss model (switching)
+TPH1R104PB,Qg,6,32,nC,"VDD~12 V (between 8 V and 16 V curves), ID=120 A",Rev 8.0 Fig. 8.14,+/-3 nC,read by eye from rendered page,loss model (gate charge interpolation)
+TPH1R104PB,Qg,10,51,nC,"VDD~12 V (between 8 V and 16 V curves), ID=120 A",Rev 8.0 Fig. 8.14,+/-3 nC (table: 55 nC at VDD~32 V),read by eye from rendered page,loss model (gate charge interpolation)
+TPH1R104PB,VSD,,0.72,V,"IF=3 A, VGS=0 V, 25 C",Rev 8.0 Fig. 8.10,+/-0.03 V,read by eye from rendered page,loss model (dead time)
+AON6512,Qoss_0to12V,,29,nC,"VGS=0 V, integral of Coss from 0 to 12 V",Rev 2.1 Figure 8 (Capacitance),+/-20 %,"Coss read at 0, 0.5, 1-8, 10, 12 V; trapezoidal integration",loss model (Coss)
+AON6152,Qoss_0to12V,,40,nC,"VGS=0 V, integral of Coss from 0 to 12 V",Rev 2.0 Figure 8 (Capacitance),+/-20 %,"Coss read at 0-8, 10, 12 V; trapezoidal integration",loss model (Coss)
+AON6354,Qoss_0to12V,,8.6,nC,"VGS=0 V, integral of Coss from 0 to 12 V",Rev 2.0 Figure 8 (Capacitance),+/-20 %,"Coss read at 0, 0.5, 1-8, 10, 12 V; trapezoidal integration",loss model (Coss)
+AON6414A,Qoss_0to12V,,3.5,nC,"VGS=0 V, integral of Coss from 0 to 12 V",Rev 4.1 Figure 8 (Capacitance),+/-20 %,"Coss read at 0, 0.5, 1-6, 8, 10, 12 V; trapezoidal integration",loss model (Coss)
+TPH1R104PB,Qoss_0to12V,,46,nC,"VGS=0 V, integral of Coss from 0 to 12 V",Rev 8.0 Fig. 8.13 (log-log),+/-25 %,"Coss read at 0.1, 1, 2, 3, 5, 7, 10, 12 V; trapezoidal integration",loss model (Coss)
+CSD17577Q5A,RDSon,4.5,4.58,mOhm,"ID=16 A, TC=25 C",SLPS516 Figure 7,+/-0.1 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+CSD17577Q5A,RDSon,5,4.17,mOhm,"ID=16 A, TC=25 C",SLPS516 Figure 7,+/-0.1 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+CSD17577Q5A,RDSon,6,3.83,mOhm,"ID=16 A, TC=25 C",SLPS516 Figure 7,+/-0.1 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+CSD17577Q5A,RDSon,7,3.64,mOhm,"ID=16 A, TC=25 C",SLPS516 Figure 7,+/-0.1 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+CSD17577Q5A,RDSon,8,3.52,mOhm,"ID=16 A, TC=25 C",SLPS516 Figure 7,+/-0.1 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+CSD17577Q5A,RDSon,10,3.36,mOhm,"ID=16 A, TC=25 C",SLPS516 Figure 7,+/-0.1 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+AON6512,RDSon,4.5,2.08,mOhm,"ID=20 A, 25 C",Rev 2.1 Figure 5,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+AON6512,RDSon,5,1.88,mOhm,"ID=20 A, 25 C",Rev 2.1 Figure 5,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+AON6512,RDSon,6,1.61,mOhm,"ID=20 A, 25 C",Rev 2.1 Figure 5,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+AON6512,RDSon,7,1.52,mOhm,"ID=20 A, 25 C",Rev 2.1 Figure 5,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+AON6512,RDSon,8,1.45,mOhm,"ID=20 A, 25 C",Rev 2.1 Figure 5,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+AON6512,RDSon,10,1.41,mOhm,"ID=20 A, 25 C",Rev 2.1 Figure 5,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+BSZ0902NS,RDSon,4.5,2.83,mOhm,"ID=20 A, Tj=25 C",Rev 2.4 Diagram 6,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+BSZ0902NS,RDSon,5,2.68,mOhm,"ID=20 A, Tj=25 C",Rev 2.4 Diagram 6,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+BSZ0902NS,RDSon,7,2.33,mOhm,"ID=20 A, Tj=25 C",Rev 2.4 Diagram 6,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+BSZ0902NS,RDSon,8,2.27,mOhm,"ID=20 A, Tj=25 C",Rev 2.4 Diagram 6,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+BSZ0902NS,RDSon,10,2.17,mOhm,"ID=20 A, Tj=25 C",Rev 2.4 Diagram 6,+/-0.05 mOhm,read by eye from rendered page,validation of RDSon(VGS) fit
+LM5176,VCC_vs_VIN,,5.0,V,"VIN=5 V, BIAS=0 V (typical curve, no stated load)",SNVSAI1D Figure 6-4 (VCC vs VIN),+/-0.1 V,read by eye from rendered page; VCC tracks VIN between ~2.6 V and ~7.4 V,gate-drive case B

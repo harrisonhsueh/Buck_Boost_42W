@@ -22,7 +22,8 @@ V1 is the reference design; changes here are documentation and analysis, not red
   converter loss directly subtracts from deliverable fan power. In boost mode
   I_L,avg = I_in = 3 A independent of efficiency.
 - **Optimization objective 2 (planned, notebook 09):** total operational cost =
-  BOM + electricity over the mission profile 1.5 W @ 95 %, 12.6 W @ 4 %, 42 W @ 1 %,
+  BOM (priced for a 50-board build: `Price_Ref_50_USD`, see `data/README.md`)
+  + electricity over the mission profile 1.5 W @ 95 %, 12.6 W @ 4 %, 42 W @ 1 %,
   at $0.20/kWh. Not yet implemented.
 - Higher PD voltages (9/15/20 V) are **checked** for ripple, I_sat, and 42 W capability,
   not optimized.
@@ -35,6 +36,9 @@ V1 is the reference design; changes here are documentation and analysis, not red
 - `data/README.md` defines the price-column conventions (`Price_Ref_*` = distributor
   price for fair part-to-part comparison; `Price_Build_*` = LCSC/JLCPCB price actually
   paid for V1). Follow it exactly when adding rows.
+- `data/mosfets.csv` holds **datasheet-table values only** (blank if the table doesn't give
+  it); values read from datasheet figures go in `data/mosfet_figure_reads.csv` with their
+  uncertainty. Conventions are in `data/README.md`.
 - `data/inductor_losses_measured.csv` holds **hand-entered Würth REDEXPERT output**
   (`P_ac_mW`, `P_dc_mW`, `P_total_mW`, `dT_K`). The input columns (`Freq_kHz`,
   `Duty_pct`, `I_avg_A`, `dI_pp_A`) are computed for feeding the calculator.

@@ -50,7 +50,8 @@ Efficiency at this point buys **capability**, not electricity savings. At 9/15/2
 design is *checked* (ripple, saturation, 42 W peak capability) rather than optimized.
 
 **Objective 2 — operational cost (planned, notebook 09).** Minimize BOM cost plus
-lifetime electricity over the real mission profile:
+lifetime electricity over the real mission profile. BOM cost is priced for a 50-board
+build (DigiKey cut tape at 50 inductors or 200 MOSFETs; conventions in `data/README.md`).
 
 | Output power | Duty |
 |---|---|
@@ -104,7 +105,7 @@ measured input behaviour forced an input-filter redesign as a V1 rework.
 | 01 | `notebooks/01_power_budget.ipynb` | Operating envelope, total load, 45 W source headroom |
 | 02 | `notebooks/02_fan_load_analysis.ipynb` | Measured fan startup/commutation current (the real load) |
 | 03 | `notebooks/03_inductor_selection.ipynb` | L = 47 µH, Würth 7443634700 |
-| 04 | `notebooks/04_mosfet_selection.ipynb` | BSC0902NS switches |
+| 04 | `notebooks/04_mosfet_selection.ipynb` | BSC0902NSI switches (V1); BSZ0501NSI recorded as V2 candidate |
 | 05 | `notebooks/05_output_input_capacitors.ipynb` | C_out = 4 × 4.7 mF + ceramics, C_in = 4 × 47 µF |
 | 06 | `notebooks/06_ripple_analysis.ipynb` | 100 kHz ripple across the input range |
 | 07 | `notebooks/07_stability_compensation.ipynb` | LM5176 pin components + deliberately slow loop (f_bw ≈ 11 Hz) |
@@ -118,29 +119,47 @@ design documents. They are listed rather than quietly patched, because they chan
 much weight the V1 conclusions deserve.
 
 1. **AC core loss was approximated.** V1's inductor comparison estimated AC loss from the
-   SPICE-model parallel resistance, not manufacturer core-loss data. The fix in progress
-   is `data/inductor_losses_measured.csv`, holding Würth REDEXPERT results at the
-   5 V / 3 A point. So far it covers six Würth parts at 100 kHz, and the V1 part
-   (7443634700, 47 µH, 2013 size) has the lowest inductor loss of them: 122 mW
-   (ΔT ≈ 3.0 K) against 144–212 mW for the others. The same 47 µH in the larger 2920
-   litz-wire package cuts AC loss (4.7 mW vs 12 mW) but has higher DCR, so it totals
-   178 mW. At 47 µH the ripple is small (0.62 A pk-pk) and DC loss dominates (110 of
-   122 mW), which is also why the V1 part barely improves from 100 to 300 kHz
-   (122 → 114 mW). The margin to the next-best checked part (33 µH litz, 144 mW) is
-   22 mW, ≈ 0.15 % of a 15 W input.
+   SPICE-model parallel resistance, not manufacturer core-loss data. The fix is
+   `data/inductor_losses_measured.csv`, holding manufacturer loss-calculator results
+   (Würth REDEXPERT, Coilcraft Power Inductor Finder) at the 5 V / 3 A point, now for
+   15 parts at 100 kHz. The V1 part (7443634700, 47 µH, 2013 size) has 122 mW of inductor
+   loss (ΔT ≈ 3.0 K). Eight parts from four other series (Würth HCF 2815, HCF 2818 and
+   HCF 2920 round wire; Coilcraft AGP2923) have less, 38–104 mW. That is 17–84 mW less
+   converter loss, 0.12–0.56 % of the 15 W input. None of the eight is stocked at JLCPCB
+   (checked 2026-09-14), so the V1 part is the lowest-loss *stocked* part, not the
+   lowest-loss part. At 47 µH the ripple is small (0.62 A pk-pk) and DC loss dominates
+   (110 of 122 mW), which is also why the V1 part barely improves from 100 to 300 kHz
+   (122 → 114 mW).
 2. **Part cost was never in the optimization.** There was no basis for saying whether a
    cheaper, less efficient part should win. `Price_Ref_*` and `Price_Build_*` columns now
    exist in the part databases (conventions in `data/README.md`); reference prices are
-   filled for nine inductors so far. The V1 part is not the cheapest of them ($6.45 vs
-   $2.78 for `SPM12565VT-220M-D` at 50 pcs).
-3. **Coverage is incomplete.** Most of the inductor database (HCF 2815/2818/2920
-   round-wire, TDK ERU 24 and SPM12565VT, Coilcraft AGP2923) has no manufacturer loss
-   data yet, and parts outside the database were not searched. Inductor loss is also
-   not converter efficiency: ripple sets RMS current and so MOSFET loss.
+   filled for ten inductors and three MOSFETs so far, priced for a 50-board build. The V1
+   inductor is not the cheapest of them ($6.45 vs $2.78 for `SPM12565VT-220M-D`).
+3. **Coverage is incomplete.** TDK ERU 24 and SPM12565VT, the 68 µH HCF 2920 round-wire
+   part and the 100 µH+ litz parts still have no manufacturer loss data, and parts outside
+   the database were not searched. By notebook 03's AC-loss budget, TDK ERU 24
+   `B82559A0303A024` could still beat the V1 part if its AC loss is under 89 mW.
+   Inductor loss is also not converter efficiency: ripple sets RMS current and so MOSFET
+   loss.
+4. **The MOSFET table was not datasheet data.** 16 of its 19 rows were drafted with AI
+   help and added in one commit without being checked against datasheets. When checked,
+   most values did not match, and five part numbers could not be found at their
+   manufacturer. It mattered for V1: the MOSFET was meant to be a 40 V part, for input
+   margin at 20 V PD. The table listed BSC0902NS as 40 V, which made it the best "40 V"
+   silicon part. It is actually a 30 V part, and so is the BSC0902NSI the board was built
+   with (not in the table at all), so V1 does not have the 40 V margin it was chosen for.
+   The table has since been re-transcribed from datasheet tables, with revision and test
+   conditions per row (`data/README.md`). Notebook 04 now evaluates RDS(on) and Q_g at
+   the LM5176's actual gate voltage (BIAS is tied to VOUT on V1, so 7.35 V) and adds
+   C_oss, dead-time and reverse-recovery loss. On that basis BSC0902NSI is mid-field at
+   the 5 V / 3 A point: 136 mW of FET loss (#4 of 16), 24 mW above the best part checked.
+   BSZ0501NSI is 14 mW lower, at $1.49 more per board (50-board DigiKey pricing).
+   Whether 30 V is enough on the input side needs a switch-node measurement at 20 V in.
 
-Where this stands: for Objective 1, the V1 part is the best of the parts checked with
-manufacturer data, not a verified optimum — the margin is small enough that an unchecked
-family could overturn it. Objective 2 is expected to be BOM-dominated, given how little
+Where this stands: for Objective 1 neither V1 power part is a verified optimum. The
+inductor is the lowest-loss JLCPCB-stocked part with manufacturer data, and eight
+unstocked parts are 17–84 mW better. The MOSFET is 14–24 mW behind the best checked
+part. Objective 2 is expected to be BOM-dominated, given how little
 the electricity term is worth at this mission profile, and so may favour a cheaper part
 than V1 used. Reconciling the two belongs in notebook 09.
 

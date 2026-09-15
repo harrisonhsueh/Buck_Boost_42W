@@ -44,6 +44,27 @@ class IC_LM5176:
     V_EN_SIGMA: Final = (V_EN_MAX - V_EN_NOM) / 4
     I_HYS_SIGMA: Final = (I_HYS_MAX - I_HYS_NOM) / 4
 
+    # --- VCC REGULATOR / GATE DRIVERS (datasheet SNVSAI1D, Electrical Characteristics) ---
+    # VCC regulation with VBIAS = 0 V. Below this, VCC tracks VIN (Figure 6-4) unless
+    # BIAS is fed from a supply above V_BIAS_SW (e.g. VOUT = 12 V).
+    V_VCC_NOM: Final = 7.35
+    V_VCC_MIN: Final = 6.95
+    V_VCC_MAX: Final = 7.88
+    V_BIAS_SW_NOM: Final = 8.0      # BIAS switchover voltage (7.25-8.75 V)
+    R_OUT_VCC_TYP: Final = 8.0      # ohm, VCC regulator output impedance (IVCC = 30 mA, VIN = 4 V)
+    R_OUT_VCC_MAX: Final = 16.0
+
+    I_DRV_SOURCE_PEAK: Final = 1.8  # A, HDRV and LDRV
+    I_DRV_SINK_PEAK: Final = 2.2    # A
+    R_HDRV_PULLUP: Final = 1.8      # ohm, VBOOT - VSW = 7 V
+    R_HDRV_PULLDOWN: Final = 1.1
+    R_LDRV_PULLUP: Final = 1.7
+    R_LDRV_PULLDOWN: Final = 1.3
+    T_DEADTIME: Final = 45e-9       # s, tDT1 and tDT2 (typical)
+
+    I_Q_OPERATING_NOM: Final = 2e-3 # A, VIN operating current (VEN = 2 V, VFB = 0.9 V)
+    I_Q_OPERATING_MAX: Final = 4e-3
+
 class DESIGN_TARGETS:
     V_USB_MIN: Final = 4.50       # Hard Ceiling, must turn on before this point
     V_ON_SAFE_FLOOR: Final = 3.8  # Soft Floor for Gate Health, dont turn on before this
@@ -83,7 +104,7 @@ class MosfetPart:
 # make_design(load_parts=True)) where you actually need the part database.
 
 ACTIVE_IND_ID = "7443634700"
-ACTIVE_FET_ID = "BSC0902NS"
+ACTIVE_FET_ID = "BSC0902NSI"   # V1 board part (not BSC0902NS)
 
 def build_design_parts(
     ind_csv: str = "data/inductors.csv",
@@ -133,7 +154,11 @@ def build_design_parts(
 class USBCSpecs:
     V_MIN: float = 5.0
     V_MAX: float = 20.0
-    V_TOLERANCE: float = 0.10
+    V_TOLERANCE: float = 0.10      # project design margin (wider than the PD spec below)
+    # USB PD R3.0 V1.1 Table 7-19: fixed supply vSrcNew = PDO x 0.95..1.05 at the Source receptacle,
+    # plus vSrcValid = +/-0.5 V during and after a transition -> 21.5 V max on a 20 V contract.
+    V_PD_NEW_TOL: float = 0.05
+    V_PD_VALID_ADD: float = 0.5
     I_MAX_HIGH_POWER: float = 5.0
     I_MAX_STANDARD: float = 3.0
 

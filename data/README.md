@@ -5,7 +5,8 @@ Part databases and analysis inputs. Loaded by name (not column position), so new
 | File | One row per | Contents |
 |---|---|---|
 | `inductors.csv` | inductor part | electrical specs, SPICE-model values, size, price |
-| `mosfets.csv` | MOSFET part | electrical/thermal specs, price |
+| `mosfets.csv` | MOSFET part | electrical/thermal specs from datasheet tables, test conditions, datasheet revision, price |
+| `mosfet_figure_reads.csv` | part × quantity | values read by eye from datasheet *figures* (plateau voltage, C_oss integrals, curve points), with uncertainty |
 | `capacitors.csv` | capacitor part | specs |
 | `inductor_losses_measured.csv` | inductor part × operating point × fsw | manufacturer loss-calculator results (Würth REDEXPERT, Coilcraft Power Inductor Finder) |
 | `efficiency_analysis.csv` | analysis output | — |
@@ -18,17 +19,18 @@ Two prices are kept because they answer different questions.
 
 | Column | Convention |
 |---|---|
-| `Price_Ref_50_USD` | Unit price in USD for a 50 pc order: the highest listed break ≤ 50. Use cut tape (or tray, if that is the only packaging) — never a full-reel break. Never extrapolate a break that isn't listed. |
-| `Price_Ref_Qty` | Quantity break the reference price was read at (e.g. `50`, or `25` if the next break is above 50). |
+| `Price_Ref_50_USD` | Unit price in USD for a **50-board** build: the highest listed break ≤ 50 × (parts per board). Inductor: 1 per board, so break ≤ 50. MOSFET: 4 per board, so break ≤ 200 (DigiKey lists 100, then 500). Use cut tape (or tray, if that is the only packaging) — never a full-reel break. Never extrapolate a break that isn't listed. |
+| `Price_Ref_Qty` | Quantity break the reference price was read at (e.g. `50` for an inductor, `100` for a MOSFET, or lower if the next break is above the 50-board quantity). |
 | `Price_Ref_Source` | `DigiKey`, or `Mouser` if DigiKey does not stock the part. Authorized distributors only. |
 | `Price_Ref_URL` | Product page link, for traceability. |
 | `Price_Ref_Date` | Date the price was read, `YYYY-MM-DD`. |
 
-Why 50 pcs: this is a DIY board, so the reference is a realistic small batch (boards built
-for others), not a production volume. Real production pricing (1k+) comes from manufacturer
+Why 50 boards: part cost only matters above one-off quantities, so the reference (and the
+Objective 2 BOM, notebook 09) is a 50-board batch, even if it is never built. It is still a
+small batch, not a production volume. Real production pricing (1k+) comes from manufacturer
 quotes, not catalog breaks — and catalog breaks for the inductors stop at 270–600 pcs, at
 different quantities per part, so a "1ku" catalog price compares parts at unequal volume.
-At 50 pcs every candidate is past its single-piece handling markup (+14 % to +31 % at 1 pc,
+At 50-board quantities every candidate is past its single-piece handling markup (+14 % to +31 % at 1 pc,
 varying by part) and is still on cut tape or tray. Decisions that depend on price should be
 checked at 1 pc and at the highest catalog break too — the ranking can change with quantity
 (e.g. Würth litz `74437429203xxx` is cheaper than TDK ERU 24 at 1 pc, but dearer at 50 pc).
@@ -43,6 +45,33 @@ checked at 1 pc and at the highest catalog break too — the ranking can change 
 | `Price_Build_Date` | Date the price was read, `YYYY-MM-DD`. |
 
 JLCPCB's one-time extended-part fee (per unique part, per order) is not included in `Price_Build_USD`.
+
+## `mosfets.csv`
+
+Every electrical/thermal value is copied from the **table** of the datasheet named in
+`Datasheet_File` (in `datasheets/mosfets/`), revision in `Datasheet_Rev`. Rules:
+
+- **Blank means the datasheet table does not give it.** Never fill a typical from a
+  min/max midpoint, a max from a typical, or a value from a similar part. (Many
+  Infineon parts give only VGS(th) min/max; EPC and GaN Systems give RthJC/RthJA
+  without a max, so those cells stay blank and the value goes in `Data_Notes`.)
+- **`_4.5V` / `_10V` columns are only for data taken at those gate voltages.** Data at
+  another V_GS goes in `RDSon_Alt_*` / `Qg_Alt_*` with the voltage in `*_Alt_VGS(V)`
+  (e.g. TPH1R104PB at 6 V, ISC230N10NM6 at 8 V, EPC2024 at 5 V, GS61008P at 6 V).
+- **Test conditions that change the number are recorded:** `Cap_Test_VDS(V)` for
+  `Coss_Typ` / `Qoss_Typ`, `VSD_Test_IF(A)`, `Qrr_Test_IF(A)` and `Qrr_Test_diFdt(A/us)`.
+  Conditions that vary but matter less (RDS(on) test current, gate-charge V_DD, which
+  side RthJC is measured on, RthJA board size) go in `Data_Notes`.
+- `RthJA_Max` board conditions differ by manufacturer (Infineon 6 cm² one-layer;
+  TI and AOS 1 in² 2 oz Cu), so compare it only within one manufacturer.
+- `Technology` uses the manufacturer's own name. Infineon parts with no generation
+  number on the product page (BSZ0901NS, BSZ0902NS, BSC0902NS/NSI) are `OptiMOS`.
+- `Part_Number` is the orderable base part, not the reel suffix (`BSC014N04LS`, not
+  `BSC014N04LSATMA1`).
+
+Anything read from a datasheet **figure** does not go here; it goes in
+`mosfet_figure_reads.csv` with the figure number, reading uncertainty and method.
+Notebook 04 uses those reads only where the table has no value.
 
 ## `inductor_losses_measured.csv`
 

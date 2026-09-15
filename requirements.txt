@@ -4,3 +4,4 @@ matplotlib
 scipy
 pyarrow        # measurements/motor_startup.parquet
 jupyter        # to run the notebooks
+pyserial       # measurements/test setup/efficiency_esp32/efficiency_logger.py
