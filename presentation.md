@@ -498,7 +498,7 @@ Four simultaneous constraints on the divider, over tolerance:
 - hysteresis gap, and a 500 µW divider power budget
 
 Searched over **JLCPCB basic parts** only.
-Result: **R2 = 390 k (120 k + 270 k), R1a = 150 k, R1b = 12 k**
+Result: **R2 = 420 k (120 k + 300 k), R1a = 150 k, R1b = 15 k**
 
 ![Constraint region](uvlo/figures/uvlo_constraints.png)
 

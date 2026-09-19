@@ -12,7 +12,7 @@ touches and what evidence would close it, per the evidence standard in `CLAUDE.m
 
 ## 0. Corrections — things the repo states wrongly today
 
-- [ ] **P — EN/UVLO divider values are stale in README and presentation.**
+- [x] **P — EN/UVLO divider values are stale in README and presentation.**
   `README.md:106` and `presentation.md:501` both say *R2 = 390 k (120 k + 270 k),
   R1a = 150 k, R1b = 12 k*. The actual search result is **R2 = 420 k (120 k + 300 k
   series), R1a = 150 k, R1b = 15 k** — `uvlo/10a_uvlo_resistor_search.py:68`,

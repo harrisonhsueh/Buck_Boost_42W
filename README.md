@@ -103,7 +103,7 @@ feasible region is a thin sliver once tolerances are applied, searched over part
 actually stocks.
 
 - `uvlo/10a_uvlo_resistor_search.py` — worst-case search for the EN/UVLO divider over
-  JLCPCB basic parts. Result: R2 = 390 k (120 k + 270 k), R1a = 150 k, R1b = 12 k.
+  JLCPCB basic parts. Result: R2 = 420 k (120 k + 300 k), R1a = 150 k, R1b = 15 k.
 - `uvlo/uvlo_tlv431.tex` / `.pdf` — divider equations, tolerance analysis, the four
   design constraints, and why the feasible region is narrow.
 - `uvlo/10b_uvlo_latch.py` — worst-case DC checks of the latch, cross-checked
