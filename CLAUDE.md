@@ -23,10 +23,17 @@ V1 is the reference design; changes here are documentation and analysis, not red
   I_L,avg = I_in = 3 A independent of efficiency.
 - **Optimization objective 2 (planned, notebook 09):** total operational cost =
   BOM (priced for a 50-board build: `Price_Ref_50_USD`, see `data/README.md`)
-  + electricity over the mission profile 1.5 W @ 95 %, 12.6 W @ 4 %, 42 W @ 1 %,
-  at $0.20/kWh. Not yet implemented.
+  + electricity over the mission profile at $0.20/kWh. Not yet implemented.
+  Use the **measured** profile from notebook 00 — 4.3 W @ 95 %, 14.0 W @ 4 %, 35.9 W @ 1 %,
+  averaging 5.0 W — not the older `42 W × duty³` figures (1.5 / 12.6 / 42 W, 2.35 W avg)
+  that still appear in archived text. Measured fan power goes as PWM^1.56, not PWM³.
 - Higher PD voltages (9/15/20 V) are **checked** for ripple, I_sat, and 42 W capability,
   not optimized.
+- **Two load numbers, and they are not interchangeable.** Sizing (notebooks 03–06) uses the
+  42 W nameplate via `constants.MAX_FAN_LOAD_WATTS` / `TOTAL_MAX_LOAD_WATTS`; that is
+  deliberate and conservative — don't "correct" it to the measured value. Analysis that
+  weights real operating hours (objective 2, notebook 09) uses the 35.9 W measured ceiling
+  and the measured profile from notebook 00.
 
 ## Data conventions
 

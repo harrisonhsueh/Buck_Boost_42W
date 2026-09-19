@@ -102,7 +102,7 @@ def main(csvs, cal_specs, out):
         if len(fr) and all(c in fr for c in fan_cols):
             m = fr["fan12_A"] > 0.3
             ax.scatter(fr.loc[m, "fan12_A"], fr.loc[m, "fan12_A"] / fr.loc[m, fan_cols].sum(axis=1), s=40,
-                       marker="x", color=INK, linewidths=1.5, label="calibration session (DMM in 12 V path)")
+                       marker="x", color=INK, linewidths=1.5, label="fan-rail calibration points")
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="lower right", markerscale=2)
 
     ax = axes[1, 1]

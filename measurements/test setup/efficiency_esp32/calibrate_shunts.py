@@ -43,9 +43,10 @@ NOMINAL_SHUNT_OHMS = {"in": 0.001, "fan12": 0.001, "b5in": 0.033, "b5out": 0.010
                       **{f"fan{k}": 0.010 for k in range(1, 11)}}
 # Virtual channel: sum of all ten per-fan channels. Fitted from every point whose DMM carried the
 # whole fan-rail current (points listing fan12), however the fans were split across headers.
-# Preferred output reference: on 2026-09-15 the 1 mOhm fan12 shunt read 2.6 % differently
-# relative to the per-fan 10 mOhm shunts with the DMM in the 12 V path than without it, so its
-# calibration did not carry over to normal operation.
+# Preferred output reference: the 1 mOhm fan12 reading depends on how current is fed to the shunt
+# pads. On 2026-09-15 a DMM wired to only one of the two parallel jumper sets ahead of the shunt
+# shifted fan12 by 2.6 % relative to the per-fan 10 mOhm shunts (1.051 vs 1.077 in normal runs);
+# wired to both sets it matched (1.080). The per-fan sum's gain agreed to 0.1 % in both sessions.
 FANSUM_CHANNELS = [f"fan{k}" for k in range(1, 11)]
 FANSUM_SHUNT_OHMS = 0.010
 INA226_SHUNT_LSB_V = 2.5e-6
