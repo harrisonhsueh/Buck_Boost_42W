@@ -9,8 +9,14 @@ workaround designed to fix it.
 ![V1 board, assembled](images/IMG_7734.JPG)
 
 *V1: LM5176 power stage (Würth 7443634700, 47 µH), 4 × 4.7 mF bulk output, 5 V
-housekeeping buck, ESP32 control, 10 fan headers. The wire near the EN/UVLO network is
-the lockout-latch rework described below.*
+housekeeping buck, ESP32 control, 10 fan headers. The taped rework beside the controller
+is the **VIN-pin blocking diode**: the trace feeding the LM5176 VIN pin from the USB-PD
+rail was cut, and VIN is now fed through a Schottky diode with a 0.1 µF cap at the pin.
+It is required because V1 ties BIAS to VOUT — without it VCC back-feeds VIN through the
+VCC regulator's body diode whenever VIN < VCC, which is the case at a 5 V input
+(datasheet — LM5176 SNVSAI1D §7.3.2, Figure 7-1); V1 as built omitted it. **The
+lockout-latch rework described below is not on the board yet** — it will be a second
+rework.*
 
 This repo is the complete design record: sizing notebooks, measured scope data, LTspice
 simulations, LaTeX circuit analysis, and the part databases behind every component
@@ -111,6 +117,11 @@ actually stocks.
 - `uvlo/uvlo_latch.tex` / `.pdf` — latch documentation: operating states, equations,
   simulation results, open review items.
 - Schematic / simulation: `simulation/en_uvlo_lockoutv3_tlv.asc`.
+
+**Status.** The latch is designed, worst-case checked and simulated, but **not yet
+built** — the remaining verify → order → build → measure steps are in `TODO.md` §2. The
+rework physically on the board today is the VIN-pin blocking diode described in the
+photo caption above, which is a separate fix to the same BIAS-tied-to-VOUT wiring.
 
 The same design → measure → revise loop appears in miniature in notebook 08, where
 measured input behaviour forced an input-filter redesign as a V1 rework.

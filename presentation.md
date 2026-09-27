@@ -40,7 +40,7 @@ export **speaker notes** as notes, not as body text.
 
 | Item | Bring? | Why |
 |---|---|---|
-| The assembled V1 board | **Yes** | Zero risk, high payoff. Pass it round during Act 4 so the rework wire is a physical object, not a bullet. |
+| The assembled V1 board | **Yes** | Zero risk, high payoff. Pass it round during Act 4 so the rework is a physical object, not a bullet. |
 | Scope captures of the pre-bias failure, as slides | **Yes** | Slide 27. This is how the failure gets shown. |
 | Live failure demo — supply, scope, test rig | **No** | See notes. |
 
@@ -524,16 +524,24 @@ Result: **R2 = 420 k (120 k + 300 k), R1a = 150 k, R1b = 15 k**
 
 ---
 
-## 27. Result
+## 27. Where the latch stands
 
-The rework wire visible near the EN/UVLO network on slide 1 **is** this latch.
+- **Designed, worst-case checked, simulated — not yet built.** Next steps: order the
+  BOM, fit it as rework, capture before/after pre-bias startup.
+- The rework visible on slide 1 is a **different** fix: the **VIN-pin blocking diode**.
+  The LM5176 VIN feed from the USB-PD rail was cut and replaced with a Schottky diode
+  plus a 0.1 µF cap at the pin — required because BIAS is tied to VOUT, and omitted on
+  V1 as built *(datasheet — LM5176 SNVSAI1D §7.3.2, Figure 7-1)*.
 
-Board starts reliably across the PD range.
+<!-- TODO: add a before/after scope capture from measurements/prebias startup/ once the latch is built -->
 
-<!-- TODO: add a before/after scope capture from measurements/prebias startup/ -->
-
-> **Notes:** Keep short. If a before/after capture can be exported in time, this slide is
-> much stronger with it than with text.
+> **Notes:** Do not claim the board is fixed. The honest version is stronger anyway: the
+> failure was root-caused, the fix is designed and verified two ways, and the build is the
+> next step. Expect the question "so does it work?" — answer that the board now carries
+> the VIN blocking diode the datasheet requires when BIAS is tied to VOUT (its omission was
+> part of how the problem was found), and that the latch closes the remaining pre-bias case.
+> Do not claim the diode alone fixed startup: that has not been measured. If a before/after
+> capture exists by then, this slide is much stronger with it than with text.
 
 ---
 

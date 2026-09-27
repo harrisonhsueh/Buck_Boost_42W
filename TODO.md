@@ -18,20 +18,31 @@ touches and what evidence would close it, per the evidence standard in `CLAUDE.m
   series), R1a = 150 k, R1b = 15 k** — `uvlo/10a_uvlo_resistor_search.py:68`,
   `uvlo/uvlo_tlv431.tex:53,329`, and the schematic `simulation/en_uvlo_lockoutv3_tlv.asc`
   all agree on 420/150/15 k. Fix both documents to match 10a.
-- [ ] **P — Decide what slide 27 and the README photo caption are allowed to claim.**
-  `presentation.md:529` says the rework wire near EN/UVLO *is* this latch and that the
-  board "starts reliably across the PD range"; `README.md:13` repeats it. The latch is
-  not built yet (§2 below). Either the wire is the input-filter rework from notebook 08
-  and the caption is wrong, or the claim is written forward-looking. Settle it and make
-  both files say what is true on the day.
-- [ ] **`DRAWN` dict in `uvlo/10b_uvlo_latch.py:152` does not match the schematic.**
-  It carries R3 = 15 k, R8 = 22 k, R9 = 10 k, R10 = 810 Ω; the `.asc` is at R3 = 130 k,
-  R8 = 2 M, R9 = 2.2 k, R10 = 39 k. It is dead code (`V = RECOMMENDED`), so this is a
-  trap for the next reader, not a live bug — update it or delete it.
-- [ ] **R10 comment contradicts the chosen value.** `uvlo/10b_uvlo_latch.py:161-165`
-  derives *R10 ≤ 44.4 k → largest basic = 39 k*, but `RECOMMENDED` sets R10 = 47 k and
-  all 21 checks pass at 47 k. One of the two is wrong. Re-derive the Q2-off residual
-  bound and fix whichever it is — this is a value that gets ordered.
+- [x] **P — Decide what slide 27 and the README photo caption are allowed to claim.**
+  Settled 2026-09-18 (designer): the visible rework is **neither** the latch nor the
+  notebook 08 input filter. It is the **LM5176 VIN-pin blocking diode** — the trace
+  feeding the VIN pin from the USB-PD rail was cut, and VIN is now fed through a Schottky
+  diode with a 0.1 µF cap at the pin. It is required because BIAS is tied to VOUT
+  (LM5176 SNVSAI1D §7.3.2 / Figure 7-1, repeated in §10.1) and V1 as built omitted it.
+  README caption, README latch status paragraph, slide 27 and notebook 04's Final
+  Conclusions now say this, and the "starts reliably across the PD range" claim is gone.
+  The latch is still unbuilt and becomes a **second** rework on this board (§2).
+- [x] **`DRAWN` dict in `uvlo/10b_uvlo_latch.py` did not match the schematic.**
+  Fixed 2026-09-26: the hand-copied dict (R3 = 15 k, R8 = 22 k, R9 = 10 k, R10 = 810 Ω —
+  v3 values, stale since 4fcbed8) is deleted. `AS_DRAWN` is now **parsed from
+  `simulation/en_uvlo_lockoutv3_tlv.asc`** by `parse_asc_resistors()`, so it cannot drift
+  again, and the "schematic deltas remaining" line is computed from the diff instead of
+  hand-written. `SIM_R2/R1A/R1B` are read from the same parse and the script now says
+  whether the simulated EN divider matches 10a (it does: 420/150/15 k). Running with
+  `V = AS_DRAWN` gives 21 checks, 0 FAIL, 2 WARN — it produced 4 spurious FAILs and
+  V_arm = 43 V before. Real deltas remaining: R9 2.2 k → 1.5 k, R10 39 k → 47 k (§2).
+- [x] **R10 comment contradicted the chosen value.** Re-derived 2026-09-26 from the
+  check-A1 residual bound (resid ≤ 0.40 V, R8 = 2 M, R9 = 1.5 k): **R10_max = 48.8 k**,
+  so **R10 = 47 k is correct** (0.386 V residual; 51 k is over) and the
+  *≤ 44.4 k → 39 k* comment was the stale half — it back-solves to R8 + R9 ≈ 1.82 M,
+  i.e. it predated the 2 M tier. Comment fixed in `uvlo/10b_uvlo_latch.py`; the value,
+  the docstring and `uvlo/uvlo_latch.tex:138` (≤ ~49 k → 47 k) now all agree.
+  Nothing that gets ordered changes.
 
 ---
 
@@ -90,7 +101,9 @@ touches and what evidence would close it, per the evidence standard in `CLAUDE.m
 
 **Build**
 
-- [ ] Build the latch as rework on the V1 board.
+- [ ] Build the latch as rework on the V1 board. Note the board already carries the
+  VIN-pin blocking-diode rework (§0) — photograph the board again once the latch is on it,
+  because `images/IMG_7734.JPG` and its caption describe the VIN-diode state only.
 - [ ] Bench-verify the states against the simulated sequence in `uvlo/uvlo_latch.tex`:
   **arm** (VB3 clamps ≈ 0.64 V), **engage** (EN clamps at Vin ≈ 3.47 V), **hold**
   (EN ≤ 10 mV through a full Vin re-application at Vout = 12 V), **release** (at
@@ -99,7 +112,7 @@ touches and what evidence would close it, per the evidence standard in `CLAUDE.m
   (check D3). At the mission profile this sits alongside the 5 V buck's 0.44 W as a
   constant term — worth having a measured number.
 - [ ] **P — Before/after pre-bias startup scope capture** for slide 27
-  (`presentation.md:533`). This is the payoff shot for Act 4.
+  (`presentation.md:536`). This is the payoff shot for Act 4.
 
 ---
 
@@ -219,7 +232,7 @@ Never fabricate or interpolate these (`CLAUDE.md`). Blank is better than invente
 
 ## 8. Presentation
 
-- [ ] **P** — §0 items 1 and 2 (stale divider values; slide 27's build claim).
+- [x] **P** — §0 items 1 and 2 (stale divider values; slide 27's build claim). Both done.
 - [ ] **P** — Export notebook 02's commutation-zoom and startup-ramp plots to `figures/`
   (`presentation.md:314`).
 - [ ] **P** — Export one ripple-vs-Vin figure from notebook 06 to `figures/`

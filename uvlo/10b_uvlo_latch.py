@@ -13,7 +13,7 @@ WHY THIS CIRCUIT EXISTS
     holds it low until the output has discharged (release at ~1.5 V). Every
     restart then begins from a (near-)dead output.
 
-TOPOLOGY (rev v3b -- simulation/en_uvlo_lockoutv3_tlv.net; supersedes the
+TOPOLOGY (rev v3b -- simulation/en_uvlo_lockoutv3_tlv.asc; supersedes the
 leakage-seeded v3, whose engage trigger depended on nA-level Q3 leakage and
 could not cover the 2N3904 Is spread -- see git history of this file)
       Q1  2N3904  EN clamp:  c=EN_UVLO, b=N5 (R12/R11 divider), e=GND
@@ -92,11 +92,54 @@ USAGE
 """
 
 import math
+import re
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 FIG_DIR = _HERE / "figures"
 RAW_PATH = _HERE.parent / "simulation" / "en_uvlo_lockoutv3_tlv.raw"
+ASC_PATH = _HERE.parent / "simulation" / "en_uvlo_lockoutv3_tlv.asc"
+
+
+def _ltspice_ohms(text):
+    """'2Meg' / '300k' / '810' -> ohms.  None if the field is not a number."""
+    m = re.match(r"([0-9.]+)\s*(meg|k|m|u|r)?", text.strip(), re.I)
+    if not m:
+        return None
+    suf = (m.group(2) or "").lower()
+    return float(m.group(1))*{"": 1.0, "r": 1.0, "k": 1e3, "meg": 1e6,
+                              "m": 1e-3, "u": 1e-6}[suf]
+
+
+def parse_asc_resistors(path):
+    """Read every R* value straight out of the LTspice .asc.
+
+    The as-drawn values are PARSED, never hand-copied: a hand-maintained copy
+    of them silently went stale for a whole revision (it still held the v3
+    R3 = 15k / R8 = 22k / R9 = 10k / R10 = 810 while the schematic had moved
+    to v3b), and the checks then reported a circuit that does not exist.
+    """
+    vals, name = {}, None
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("SYMATTR InstName"):
+            parts = line.split(None, 2)
+            name = parts[2].strip() if len(parts) > 2 else None
+        elif line.startswith("SYMATTR Value") and name:
+            parts = line.split(None, 2)
+            if re.match(r"R[0-9]", name) and len(parts) > 2:
+                ohms = _ltspice_ohms(parts[2])
+                if ohms is not None:
+                    vals[name] = ohms
+            name = None
+    return vals
+
+
+_ASC_R = parse_asc_resistors(ASC_PATH)
 
 # --------------------------------------------------------------------------
 # PARAMETERS
@@ -105,10 +148,13 @@ VOUT_NOM  = 12.0    # V  converter output (latch supply)
 VOUT_MAX  = 15.75   # V  output OV corner: 15 V zener clamp +5%
 VIN_MAX   = 22.0    # V  maximum input
 VTH_MIN   = 1.17    # V  LM5176 EN threshold, min
-# EN/UVLO divider (sized in 10a; R2 = 120k + 300k series). The .asc carries
-# these same values, so SIM_* tracks the design.
+# EN/UVLO divider (sized in 10a; R2 = 120k + 300k series). SIM_* are read
+# from the .asc so the S2 prediction is checked against the divider that was
+# actually simulated (they agree today: 420k/150k/15k).
 R2, R1A, R1B = 420e3, 150e3, 15e3
-SIM_R2, SIM_R1A, SIM_R1B = R2, R1A, R1B
+SIM_R2  = _ASC_R.get("R2",  R2)
+SIM_R1A = _ASC_R.get("R1a", R1A)
+SIM_R1B = _ASC_R.get("R1b", R1B)
 
 # Design targets, pushed to the physics floor (razor margins accepted by
 # design review). Dearm needs VOUT >= Vka(max) + Veb2(cold, box high tail)
@@ -147,10 +193,8 @@ VCE_SAT, VCE_SAT_MAX = 0.10, 0.20
 BETA_MIN, FBETA_SAT = 30.0, 10.0              # worst beta / forced-beta target
 VKA = 1.24                                     # TLV431 cathode when regulating
 
-# Values: as drawn in the .net today vs RECOMMENDED (this file's design).
+# THE DESIGN (this file's result) vs AS_DRAWN (what the .asc carries today).
 # All recommended values are single JLCPCB basic-part 0603 resistors.
-DRAWN = dict(R3=15e3, R4=1e6,   R5=30e3, R6=1e3, R7=30e3,
-             R8=22e3, R9=10e3,  R10=810.0, R11=100e3, R12=100e3)
 # Values derived by the forward chain (full derivation in uvlo_latch.tex):
 #  1) R9 window: TLV431 I_K<=15mA -> >=0.92k; I_KA>=80uA (onsemi spec:
 #     30 typ/80 max) at the box-corner arm point (2.01 V) -> <=1.51k.
@@ -159,16 +203,28 @@ DRAWN = dict(R3=15e3, R4=1e6,   R5=30e3, R6=1e3, R7=30e3,
 #     each part dissipating 34 mW continuous / 64 mW at the OV corner.
 #  2) R8 tier fixed at 2M (10M tier buys only 31 mV of dearm and quadruples
 #     ICBO/board-leakage sensitivity), then the Q2-off residual equation
-#     SOLVED for R10 gives R10 <= 44.4k -> largest basic = 39k. Note the
-#     off-leakage term alone would allow R10 up to 0.4V/1uA = 400k -- it is
-#     not the binding bound; the divider+leakage total is.
-#     (Same constraint solved the other way: R10=39k -> R8 >= 1.73M -> 2M.)
+#     SOLVED for R10 gives R10 <= 48.8k -> largest basic = 47k (51k is over).
+#     Note the off-leakage term alone would allow R10 up to 0.4V/1uA = 400k --
+#     it is not the binding bound; the divider+leakage total is.
+#     (Same constraint solved the other way: R10=47k -> R8 >= 1.93M -> 2M.)
+#     The bound IS the check-A1 residual set to 0.40 V: resid = VOUT_max*R10
+#     *(1+tol)/((1-tol)*(R8+R9) + (1+tol)*R10) + I_K(off)*R10, R8 = 2M,
+#     R9 = 1.5k -> 0.386 V at 47k. (An earlier comment here said 44.4k -> 39k;
+#     that back-solves to R8+R9 = 1.82M, i.e. it predated the 2M tier.)
 #  3) R3 from the RACE solve (box tails): arm_min(T) >= dearm_active(T) at
 #     every temperature; binding at 50 C -> R3 <= 136k -> 130k basic.
 RECOMMENDED = dict(R3=130e3, R4=300e3, R5=82e3, R6=1e3, R7=30e3,
                    R8=2e6, R9=1.5e3, R10=47e3, R11=100e3, R12=100e3)
 # R9 = 2x 3k in parallel (basic 0603 pair; halves per-part dissipation)
-V = RECOMMENDED     # <- set to DRAWN to check the schematic's current values
+
+# As drawn in the LTspice schematic TODAY. The stored .raw that
+# crosscheck_sim() reads was produced from THESE values, so the two sets are
+# not interchangeable: RECOMMENDED is the design, AS_DRAWN is what was
+# simulated. Deltas are printed by main(); close them in the .asc, re-run the
+# transient, and then both columns agree and this distinction can go.
+AS_DRAWN = {k: v for k, v in _ASC_R.items() if k in RECOMMENDED}
+
+V = RECOMMENDED     # <- set to AS_DRAWN to check the schematic's current values
 
 def fmt_i(i):
     a = abs(i)
@@ -523,6 +579,36 @@ def make_figure(t, VIN, VOUT, EN, c):
     plt.close(fig)
     print(f"       wrote {path}")
 
+def fmt_r(x):
+    if x >= 1e6: return f"{x/1e6:g}M"
+    if x >= 1e3: return f"{x/1e3:g}k"
+    return f"{x:g}"
+
+def print_schematic_deltas():
+    """Diff the .asc against the design -- computed, so it cannot go stale."""
+    if not AS_DRAWN:
+        print(f"Schematic deltas: could not read {ASC_PATH.name} -- "
+              f"as-drawn values unknown.")
+        return
+    order = sorted(RECOMMENDED, key=lambda k: int(k[1:]))
+    d = [(k, AS_DRAWN[k], RECOMMENDED[k]) for k in order
+         if k in AS_DRAWN and abs(AS_DRAWN[k] - RECOMMENDED[k]) > 1e-9]
+    missing = [k for k in order if k not in AS_DRAWN]
+    if d:
+        print("Schematic deltas remaining (.asc -> design): "
+              + ", ".join(f"{k} {fmt_r(a)} -> {fmt_r(r)}" for k, a, r in d)
+              + (" [R9 = 2x 3k parallel]" if any(k == "R9" for k, _, _ in d)
+                 else "") + ".")
+    else:
+        print("Schematic matches the design: no deltas remaining.")
+    if missing:
+        print(f"       not found in the .asc: {', '.join(missing)}")
+    en_ok = (SIM_R2, SIM_R1A, SIM_R1B) == (R2, R1A, R1B)
+    print(f"       EN/UVLO divider in the .asc: {fmt_r(SIM_R2)}/{fmt_r(SIM_R1A)}"
+          f"/{fmt_r(SIM_R1B)} -- "
+          + ("matches 10a's recommendation." if en_ok else
+             f"DIFFERS from 10a's {fmt_r(R2)}/{fmt_r(R1A)}/{fmt_r(R1B)}."))
+
 def main():
     print(f"UVLO lockout latch v3b -- design + worst-case DC checks "
           f"(analyzing: {'RECOMMENDED' if V is RECOMMENDED else 'AS-DRAWN'} values)\n")
@@ -536,9 +622,7 @@ def main():
     n_f = _results.count("FAIL"); n_w = _results.count("WARN")
     print(f"\nSummary: {len(_results)} checks, {n_f} FAIL, {n_w} WARN.")
     if V is RECOMMENDED:
-        print("Schematic deltas remaining: R9 2.2k -> 1.5k (2x 3k parallel), "
-              "R10 39k -> 47k. The EN/UVLO divider in the .asc already matches "
-              "10a's recommendation (420k/150k/15k).")
+        print_schematic_deltas()
 
 if __name__ == "__main__":
     main()
