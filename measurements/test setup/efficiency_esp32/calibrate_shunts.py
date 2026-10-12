@@ -8,6 +8,7 @@ Run from the repo root with the venv active (efficiency_esp32.ino on the board, 
   python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" run COM5 in
   python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" run COM5 fan12 fan1
   python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" run COM5 fan12 --dmm-also b5in
+  python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" run COM5 fan12 fan1 --resistor
   python "measurements/test setup/efficiency_esp32/calibrate_shunts.py" fit measurements/efficiency/*_shunt_cal_*.csv
 
 Every channel listed after the port must carry exactly the DMM current. If the DMM also carries
@@ -21,6 +22,10 @@ sketch command (e.g. "pwm 60"), skips ~3 s of settling, then averages ~8 s of IN
 you watch the DMM. Type the DMM reading afterwards. The port is closed between points, so the
 board can be power-cycled to move DMM leads.
 
+--resistor: fixed resistors on one header instead of fans. Each point asks for the load name
+(16, 8, 4, open) instead of a sketch command, uses the 10 A range (open = 0 A, no DMM entry),
+and optionally takes the bench supply's current display as a check on the input shunt.
+
 Every point (DMM value plus the mean of every logged column) is saved to
 measurements/efficiency/<timestamp>_shunt_cal_<channels>.csv as it is taken. The fit, per channel,
     I_true = gain * I_nominal + offset       (I_nominal = the sketch's <ch>_A, nominal shunt)
@@ -29,6 +34,7 @@ several sessions can be combined; each channel is fitted from every point that l
 """
 
 import argparse
+import glob
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -55,6 +61,10 @@ MAX_TIMEOUTS = 5        # consecutive 1 s serial timeouts before giving up on a 
 DMM_WEIGHT_PCT = 0.5    # assumed DMM proportional error; only weights the fit, not a spec
 MAX_GAIN_DEVIATION = 0.25  # fits further than this from gain 1 are reported but never applied
 RANGE_UNITS = {"400ma": "ma", "10a": "a", "none": "a"}  # unit assumed when none is typed
+TYPO_RATIO = 0.15       # DMM vs INA226 nominal differing more than this asks for confirmation
+HEADER_CHECK_A = 0.05   # a per-fan channel above this that isn't the listed one is reported
+# supply / in_A nominal expected if the 2026-09-15 input fit (0.8996 x nominal) transfers
+INPUT_CAL_GAIN_2026_09_15 = 0.8996
 
 PLAN_INPUT = """
 Input shunt ('in'): DMM in series from the bench supply + lead to the board input.
@@ -86,6 +96,25 @@ Fan-rail shunt ('fan12', plus the per-fan channel of the header you use, e.g. 'f
   Resistor points through a header put up to 3 A (90 mW) through that header's 10 mOhm shunt
   and connector. If that's too much for them, connect the resistor to the fan rail after the
   1 mOhm shunt and take those points in a separate 'run COM5 fan12' session.
+"""
+
+PLAN_RESISTOR = """
+Resistive load on ONE header ('fan12' plus that header's channel, e.g. 'fan1' for J3):
+  DMM on the 10 A range in series with the resistor, in the resistor lead, not spliced into the
+  board, so current passes the shunts as in normal operation. Nothing else on the fan rail.
+  Because the DMM only sees the resistor current, --dmm-also is not needed.
+  The resistor draws as soon as the 12 V rail comes up: turn the bench supply OFF to swap
+  resistors. The ESP32 reboots each time, and each point reopens the port.
+  Points (current ~12 V / R, calculated; Vin only has to supply the power):
+    open   nothing on the header           pins the offset (DMM taken as 0, no entry)
+    16     ~0.75 A   ~9 W in the resistor    any Vin (~1.9 A in at 5 V)
+    8      ~1.5 A    ~18 W                   Vin >= 9 V (would be ~3.7 A in at 5 V)
+    4      ~3.0 A    ~36 W                   Vin 15-20 V (~2.4 A in at 15 V)
+  Resistors heat up, so their current drifts. Wait until the DMM is nearly steady before starting
+  a point. Note the DMM when 'averaging' starts and again when it ends, then enter start..end.
+  For the input-shunt check (efficiency README, open item 1), repeat a resistor at other Vin values
+  and type the bench supply's current display when asked. The fan-rail fit doesn't depend on Vin.
+  At 3 A, the header's 10 mOhm shunt dissipates 90 mW. Check that the connector is rated for 3 A.
 """
 
 
@@ -217,14 +246,20 @@ def print_fits(points, channels):
 
 
 def read_points(specs):
-    """Concatenate point files. 'file.csv::b5in' sets dmm_also=b5in for that file's points."""
+    """Concatenate point files. 'file.csv::b5in' sets dmm_also=b5in for that file's points.
+    Wildcards are expanded here because cmd.exe passes them through unexpanded."""
     frames = []
     for spec in specs:
-        path, _, also = str(spec).partition("::")
-        df = pd.read_csv(path)
-        if also:
-            df["dmm_also"] = also.replace(",", " ")
-        frames.append(df)
+        pattern, _, also = str(spec).partition("::")
+        paths = sorted(glob.glob(pattern)) if glob.has_magic(pattern) else [pattern]
+        if not paths:
+            sys.exit(f"no files match {pattern}")
+        for path in paths:
+            print(f"  reading {path}{'  (dmm_also ' + also + ')' if also else ''}")
+            df = pd.read_csv(path)
+            if also:
+                df["dmm_also"] = also.replace(",", " ")
+            frames.append(df)
     return pd.concat(frames, ignore_index=True)
 
 
@@ -252,33 +287,80 @@ def load_calibration(specs):
     return cal
 
 
-def run(port, channels, dmm_also=()):
+def print_supply_check(points):
+    """Bench supply current display vs in_A nominal, for the points where it was typed."""
+    if "supply_A" not in points or "in_A" not in points:
+        return
+    sel = points.dropna(subset=["supply_A", "in_A"])
+    sel = sel[sel["in_A"] > 0]
+    if sel.empty:
+        return
+    print(f"\n  input check: supply display / in_A nominal "
+          f"(~{INPUT_CAL_GAIN_2026_09_15:.3f} if the 2026-09-15 input fit transfers, ~1.000 if not)")
+    table = pd.DataFrame({"load": sel.get("load", ""), "in_V": sel["in_V"],
+                          "supply_mA": sel["supply_A"] * 1e3, "in_nominal_mA": sel["in_A"] * 1e3,
+                          "ratio": sel["supply_A"] / sel["in_A"]})
+    print(table.round(3).to_string(index=False))
+
+
+def check_header(rec, per_fan):
+    """Warn if a per-fan channel other than the listed one carries the load current."""
+    currents = {c: rec.get(f"{c}_A", np.nan) for c in FANSUM_CHANNELS}
+    currents = {c: v for c, v in currents.items() if np.isfinite(v)}
+    if not currents:
+        return
+    busiest = max(currents, key=currents.get)
+    if busiest != per_fan and currents[busiest] > HEADER_CHECK_A:
+        print(f"  WARNING: {busiest} carries {currents[busiest] * 1e3:.0f} mA but {per_fan} was listed. "
+              f"Wrong header, or the header-to-channel mapping in efficiency_esp32.ino is off. "
+              f"Skip this point ('s').")
+
+
+def run(port, channels, dmm_also=(), resistor=False):
     per_fan = [c for c in channels if c.startswith("fan") and c != "fan12"]
     if len(per_fan) > 1:
         sys.exit(f"List at most one per-fan channel ({', '.join(per_fan)} given): each listed channel "
                  "must carry the whole DMM current, which only one header can.")
+    if resistor and ("in" in channels or dmm_also):
+        sys.exit("--resistor puts the DMM in the resistor lead: list fan12 and/or one per-fan channel, "
+                 "without 'in' or --dmm-also.")
     stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    path = OUT_DIR / f"{stamp}_shunt_cal_{'_'.join(channels)}.csv"
+    path = OUT_DIR / f"{stamp}_shunt_cal_{'_'.join(channels)}{'_resistor' if resistor else ''}.csv"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    if "in" in channels:
-        print(PLAN_INPUT)
-    if any(c != "in" for c in channels):
-        print(PLAN_FAN_RAIL)
+    if resistor:
+        print(PLAN_RESISTOR)
+    else:
+        if "in" in channels:
+            print(PLAN_INPUT)
+        if any(c != "in" for c in channels):
+            print(PLAN_FAN_RAIL)
     print(f"Points are saved to {path}")
 
     points, last_range = [], "400ma"
     while True:
         k = len(points) + 1
-        command = input(f"\nPoint {k}: set supply, load, DMM range. Sketch command (e.g. 'pwm 60'), "
-                        f"Enter for none, 'q' to finish: ").strip()
-        if command.lower() == "q":
-            break
-        rng = input(f"  DMM range [400mA / 10A / none] (Enter = {last_range}): ").strip().lower() or last_range
-        if rng not in RANGE_UNITS:
-            print(f"  unknown range '{rng}'")
-            continue
-        last_range = rng
-        print("  Watch the DMM while this averages.")
+        load = ""
+        if resistor:
+            load = input(f"\nPoint {k}: connect the resistor, power on, let the DMM settle. "
+                         f"Load ('16', '8', '4', 'open'), 'q' to finish: ").strip().lower()
+            if load == "q":
+                break
+            if not load:
+                print("  name the load, e.g. 16 or open")
+                continue
+            command, rng = "", ("none" if load == "open" else "10a")
+            print("  Note the DMM when 'averaging' starts and when it ends.")
+        else:
+            command = input(f"\nPoint {k}: set supply, load, DMM range. Sketch command (e.g. 'pwm 60'), "
+                            f"Enter for none, 'q' to finish: ").strip()
+            if command.lower() == "q":
+                break
+            rng = input(f"  DMM range [400mA / 10A / none] (Enter = {last_range}): ").strip().lower() or last_range
+            if rng not in RANGE_UNITS:
+                print(f"  unknown range '{rng}'")
+                continue
+            last_range = rng
+            print("  Watch the DMM while this averages.")
         try:
             with open_port(port) as ser:
                 data = collect_point(ser, channels, command or None)
@@ -293,31 +375,57 @@ def run(port, channels, dmm_also=()):
             note = "  <- drifting, consider 'r'" if abs(drift) > 0.005 * abs(mean) + 1e-3 else ""
             print(f"  {ch}: {mean * 1e3:.2f} mA nominal, std {std * 1e3:.2f} mA, "
                   f"drift {drift * 1e3:+.2f} mA{note}")
+        if per_fan:
+            check_header(rec, per_fan[0])
 
         unit = RANGE_UNITS[rng]
         text = ""
-        while True:
-            text = input(f"  DMM reading in {'mA' if unit == 'ma' else 'A'} "
-                         f"(fluctuating: low..high; 'r' redo, 's' skip): ").strip().lower()
+        if resistor and load == "open":
+            dmm_A, res_A, spread_A = 0.0, 0.0, 0.0
+            if input("  open: DMM taken as 0 A. Enter to keep, 'r' redo, 's' skip: ").strip().lower() in ("r", "s"):
+                continue
+        else:
+            hint = "start..end" if resistor else "fluctuating: low..high"
+            while True:
+                text = input(f"  DMM reading in {'mA' if unit == 'ma' else 'A'} "
+                             f"({hint}; 'r' redo, 's' skip): ").strip().lower()
+                if text in ("r", "s"):
+                    break
+                try:
+                    dmm_A, res_A, spread_A = parse_dmm(text, rng)
+                except ValueError:
+                    print("  could not read that, e.g. 152.3  or  1.523A  or  148.2..151.0")
+                    continue
+                ref = dmm_A - sum(rec.get(f"{o}_A", 0.0) for o in dmm_also)
+                off = [ch for ch in channels if rec.get(f"{ch}_A", 0) > HEADER_CHECK_A
+                       and abs(ref / rec[f"{ch}_A"] - 1) > TYPO_RATIO]
+                if off and input(f"  {ref * 1e3:.1f} mA is more than {TYPO_RATIO:.0%} from "
+                                 f"{', '.join(off)} nominal. Keep it? [y/N]: ").strip().lower() != "y":
+                    continue
+                break
             if text in ("r", "s"):
-                break
-            try:
-                dmm_A, res_A, spread_A = parse_dmm(text, rng)
-                break
-            except ValueError:
-                print("  could not read that, e.g. 152.3  or  1.523A  or  148.2..151.0")
-        if text in ("r", "s"):
-            continue
+                continue
+
+        supply_A = np.nan
+        if resistor:
+            while True:
+                s = input("  Bench supply current display in A (Enter to skip): ").strip().lower().rstrip("a")
+                try:
+                    supply_A = float(s) if s else np.nan
+                    break
+                except ValueError:
+                    print("  e.g. 2.41")
 
         rec.update({"time": datetime.now().isoformat(timespec="seconds"), "channels": " ".join(channels),
-                    "dmm_also": " ".join(dmm_also), "sketch_cmd": command, "dmm_range": rng,
-                    "dmm_A": dmm_A, "dmm_res_A": res_A, "dmm_spread_A": spread_A})
+                    "dmm_also": " ".join(dmm_also), "sketch_cmd": command, "load": load, "dmm_range": rng,
+                    "dmm_A": dmm_A, "dmm_res_A": res_A, "dmm_spread_A": spread_A, "supply_A": supply_A})
         points.append(rec)
         df = pd.DataFrame(points)
-        front = ["time", "channels", "dmm_also", "sketch_cmd", "dmm_range", "dmm_A", "dmm_res_A",
-                 "dmm_spread_A", "n_rows"]
+        front = ["time", "channels", "dmm_also", "sketch_cmd", "load", "dmm_range", "dmm_A", "dmm_res_A",
+                 "dmm_spread_A", "supply_A", "n_rows"]
         df[front + [c for c in df.columns if c not in front]].to_csv(path, index=False)
-        print_fits(df, channels)
+        print_fits(df, channels + (["fansum"] if "fan12" in channels else []))
+        print_supply_check(df)
 
     if points:
         print(f"\nSaved {len(points)} points to {path}")
@@ -331,15 +439,18 @@ def main():
     p_run.add_argument("channels", nargs="+", choices=sorted(NOMINAL_SHUNT_OHMS))
     p_run.add_argument("--dmm-also", nargs="+", default=[], choices=sorted(NOMINAL_SHUNT_OHMS),
                        help="channels whose current also flows through the DMM (subtracted)")
+    p_run.add_argument("--resistor", action="store_true",
+                       help="fixed resistors on one header (DMM in the resistor lead), see PLAN_RESISTOR")
     p_fit = sub.add_parser("fit")
     p_fit.add_argument("files", nargs="+", help="point files; file.csv::b5in marks dmm_also for that file")
     args = parser.parse_args()
 
     if args.action == "run":
-        run(args.port, args.channels, args.dmm_also)
+        run(args.port, args.channels, args.dmm_also, args.resistor)
     else:
         points = read_points(args.files)
         print_fits(points, point_channels(points))
+        print_supply_check(points)
 
 
 if __name__ == "__main__":
