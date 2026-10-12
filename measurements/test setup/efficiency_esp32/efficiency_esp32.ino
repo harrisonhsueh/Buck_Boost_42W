@@ -48,6 +48,10 @@ const uint32_t FAN_PWM_FREQ_HZ = 25000;  // Intel 4-wire fan PWM frequency
 const uint8_t FAN_PWM_BITS = 10;
 const float RAMP_DEFAULT_S = 120.0;
 const float RAMP_IIN_LIMIT_A = 3.0;      // default turn-around current (USB PD 3 A)
+// Readings in a row over the limit before the ramp turns around; the ramp holds meanwhile.
+// All fans share one duty and start together at ~6 %: on 2026-09-15 at 5 V that start surge
+// read 3.8 A nominal for one 282 ms reading (or ~3 A in each of two), reversing three ramps.
+const int RAMP_IIN_OVER_READINGS = 3;
 
 // --- FAN TACH ---
 // Speed is the median tach edge-to-edge interval inside each INA226 conversion window, so it
@@ -162,6 +166,7 @@ float rampIinLimitA = RAMP_IIN_LIMIT_A;
 unsigned long lastFanUpdateMs = 0;
 float lastIinA = 0.0;
 bool lastIinOk = false;
+int iinOverCount = 0;
 
 struct TachState {
   uint32_t prevUs;                          // last accepted edge
@@ -238,11 +243,15 @@ void updateFanRamp() {
 
   if (fanMode == FAN_RAMP_UP) {
     if (lastIinOk && lastIinA > rampIinLimitA) {
-      Serial.printf("# ramp: Iin %.2f A > %.2f A limit at %.1f %%, ramping down\n",
-                    lastIinA, rampIinLimitA, fanPct);
-      fanMode = FAN_RAMP_DOWN;
-      return;
+      iinOverCount++;
+      if (iinOverCount >= RAMP_IIN_OVER_READINGS) {
+        Serial.printf("# ramp: Iin %.2f A > %.2f A limit for %d readings at %.1f %%, ramping down\n",
+                      lastIinA, rampIinLimitA, iinOverCount, fanPct);
+        fanMode = FAN_RAMP_DOWN;
+      }
+      return;  // hold the duty while over the limit
     }
+    iinOverCount = 0;
     float next = fanPct + rampSlopePctPerS * dt;
     if (next >= rampMaxPct) {
       setFanPct(rampMaxPct);
@@ -566,6 +575,7 @@ void handleCommand(String cmd) {
       rampMaxPct = constrain(maxPct, 0.0f, 100.0f);
       rampSlopePctPerS = 100.0 / seconds;
       rampIinLimitA = limitA;
+      iinOverCount = 0;
       lastFanUpdateMs = millis();
       fanMode = FAN_RAMP_UP;
       Serial.printf("# ramp: %.1f -> %.1f %% at %.3f %%/s (100 %% per %.0f s), Iin limit %.2f A\n",

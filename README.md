@@ -9,8 +9,14 @@ workaround designed to fix it.
 ![V1 board, assembled](images/IMG_7734.JPG)
 
 *V1: LM5176 power stage (Würth 7443634700, 47 µH), 4 × 4.7 mF bulk output, 5 V
-housekeeping buck, ESP32 control, 10 fan headers. The wire near the EN/UVLO network is
-the lockout-latch rework described below.*
+housekeeping buck, ESP32 control, 10 fan headers. The taped rework beside the controller
+is the **VIN-pin blocking diode**: the trace feeding the LM5176 VIN pin from the USB-PD
+rail was cut, and VIN is now fed through a Schottky diode with a 0.1 µF cap at the pin.
+It is required because V1 ties BIAS to VOUT — without it VCC back-feeds VIN through the
+VCC regulator's body diode whenever VIN < VCC, which is the case at a 5 V input
+(datasheet — LM5176 SNVSAI1D §7.3.2, Figure 7-1); V1 as built omitted it. **The
+lockout-latch rework described below is not on the board yet** — it will be a second
+rework.*
 
 This repo is the complete design record: sizing notebooks, measured scope data, LTspice
 simulations, LaTeX circuit analysis, and the part databases behind every component
@@ -53,18 +59,35 @@ design is *checked* (ripple, saturation, 42 W peak capability) rather than optim
 lifetime electricity over the real mission profile. BOM cost is priced for a 50-board
 build (DigiKey cut tape at 50 inductors or 200 MOSFETs; conventions in `data/README.md`).
 
-| Output power | Duty |
-|---|---|
-| 1.5 W | 95 % |
-| 12.6 W | 4 % |
-| 42 W | 1 % |
+The profile is set by the two fan speeds the unit is designed around (notebook 00). The
+pre-build power figures came from a `42 W × (PWM duty)³` model; the measured column
+replaces them and is what notebook 09 should use.
 
-At $0.20/kWh that profile delivers ≈ 2.35 W average, ≈ 20.6 kWh/yr, ≈ **$4/yr of
-delivered energy**. A preliminary implication — to be confirmed in 09 — is that
-converter-loss differences between candidate parts are worth *cents* per year, so the
-operational-cost objective is expected to be BOM-dominated and to favour different parts
-than Objective 1. Where the two objectives disagree, the notebooks say so explicitly
-rather than picking a winner silently.
+| Setting | Duty | Assumed (cube law) | **Measured** (notebook 00) |
+|---|---|---|---|
+| quiet, 33 % PWM | 95 % | 1.5 W | **4.3 W** |
+| high, 67 % PWM | 4 % | 12.6 W | **14.0 W** |
+| peak, 100 % PWM | 1 % | 42 W | **35.9 W** |
+| **average** | | 2.35 W | **5.0 W** |
+
+The cube model was wrong in the direction that matters: measured fan power goes as
+PWM^1.56 (rpm^2.07), so the setting that occupies 95 % of the hours costs 2.8× what was
+assumed. At $0.20/kWh the profile delivers ≈ 43.8 kWh/yr, ≈ **$8.75/yr of delivered
+energy** — roughly double the $4.12/yr the cube model implied.
+
+**Caveat: the measured column is open-air.** Those runs had the ten fans on the bench with
+no enclosure, filters or static pressure, so they sat at a different point on the fans'
+P-Q curve than the finished unit uses. The direction of the shift should not be assumed —
+axial fans classically draw more power as flow is restricted. Repeating one full ramp with
+the fans enclosed is the open item (notebook 00, §7).
+
+That doubling does not change the objective's expected conclusion: converter-loss
+differences between candidate parts are still worth *cents* per year, so Objective 2 is
+expected to be BOM-dominated and to favour different parts than Objective 1. Where the two
+objectives disagree, the notebooks say so explicitly rather than picking a winner silently.
+Notebook 00 also flags a term that outweighs every power-stage part difference at this
+profile: the 5 V housekeeping buck draws a constant **0.44 W** (measured) and was never
+analysed in V1.
 
 ---
 
@@ -86,7 +109,7 @@ feasible region is a thin sliver once tolerances are applied, searched over part
 actually stocks.
 
 - `uvlo/10a_uvlo_resistor_search.py` — worst-case search for the EN/UVLO divider over
-  JLCPCB basic parts. Result: R2 = 390 k (120 k + 270 k), R1a = 150 k, R1b = 12 k.
+  JLCPCB basic parts. Result: R2 = 420 k (120 k + 300 k), R1a = 150 k, R1b = 15 k.
 - `uvlo/uvlo_tlv431.tex` / `.pdf` — divider equations, tolerance analysis, the four
   design constraints, and why the feasible region is narrow.
 - `uvlo/10b_uvlo_latch.py` — worst-case DC checks of the latch, cross-checked
@@ -95,6 +118,11 @@ actually stocks.
   simulation results, open review items.
 - Schematic / simulation: `simulation/en_uvlo_lockoutv3_tlv.asc`.
 
+**Status.** The latch is designed, worst-case checked and simulated, but **not yet
+built** — the remaining verify → order → build → measure steps are in `TODO.md` §2. The
+rework physically on the board today is the VIN-pin blocking diode described in the
+photo caption above, which is a separate fix to the same BIAS-tied-to-VOUT wiring.
+
 The same design → measure → revise loop appears in miniature in notebook 08, where
 measured input behaviour forced an input-filter redesign as a V1 rework.
 
@@ -102,7 +130,8 @@ measured input behaviour forced an input-filter redesign as a V1 rework.
 
 | # | Notebook / folder | What it decides |
 |---|---|---|
-| 01 | `notebooks/01_power_budget.ipynb` | Operating envelope, total load, 45 W source headroom |
+| 00 | `notebooks/00_design_goals.ipynb` | Air-quality requirement → airflow → fan count → load and mission profile; what each USB supply can actually deliver |
+| 01 | `notebooks/01_power_budget.ipynb` | Operating envelope (source- vs load-limited), mode map, power-stage currents, measured loss budget |
 | 02 | `notebooks/02_fan_load_analysis.ipynb` | Measured fan startup/commutation current (the real load) |
 | 03 | `notebooks/03_inductor_selection.ipynb` | L = 47 µH, Würth 7443634700 |
 | 04 | `notebooks/04_mosfet_selection.ipynb` | BSC0902NSI switches (V1); BSZ0501NSI recorded as V2 candidate |
@@ -111,6 +140,7 @@ measured input behaviour forced an input-filter redesign as a V1 rework.
 | 07 | `notebooks/07_stability_compensation.ipynb` | LM5176 pin components + deliberately slow loop (f_bw ≈ 11 Hz) |
 | 08 | `notebooks/08_input_filter_redesign.ipynb` | Input smoothing via average-current-limit method (PCB v1 rework) |
 | 10 | `uvlo/` | UVLO lockout latch (above) |
+| 11 | `notebooks/11_efficiency_measured_vs_model.ipynb` | Measured efficiency vs the 03/04 loss model; sizes what the model misses |
 
 ## Known gaps in the V1 selection method
 
@@ -166,7 +196,8 @@ than V1 used. Reconciling the two belongs in notebook 09.
 ## Repository layout
 
 ```
-notebooks/      design notebooks 01–08 (cleaned, re-executed*)
+notebooks/      design notebooks 00–11 (cleaned, re-executed*)
+presentation.md slide source for the 45-minute end-to-end design talk
 uvlo/           UVLO latch: scripts, LaTeX docs + PDFs, figures
 constants.py    single source of truth for specs & part database access
 component_utils.py

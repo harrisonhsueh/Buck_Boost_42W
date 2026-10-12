@@ -10,6 +10,30 @@ Part databases and analysis inputs. Loaded by name (not column position), so new
 | `capacitors.csv` | capacitor part | specs |
 | `inductor_losses_measured.csv` | inductor part × operating point × fsw | manufacturer loss-calculator results (Würth REDEXPERT, Coilcraft Power Inductor Finder) |
 | `efficiency_analysis.csv` | analysis output | — |
+| `BOM-BUCK_BOOST_42W_V1P4_removed_nm - BOM-BUCK_BOOST_42W.csv` | line item (grouped designators) | **as-built BOM for the V1.4 board**, LCSC part numbers, `_removed_nm` = do-not-populate parts already stripped |
+
+## As-built BOM
+
+`BOM-BUCK_BOOST_42W_V1P4_removed_nm - BOM-BUCK_BOOST_42W.csv` is the BOM the V1.4 board was
+actually assembled from — the ground truth for "what is on the board", as opposed to
+`inductors.csv` / `mosfets.csv` / `capacitors.csv`, which are *candidate* databases for
+comparing parts. Columns are `Comment, Designator, Footprint, LCSC, Quantity`; one row per
+value/footprint group, with designators comma-separated inside the quoted field.
+
+Things worth knowing when reading it against `constants.py`:
+
+- **Output capacitance is split into two banks** either side of `R24`, a 0 Ω 0612 link in
+  the output current-sense position (that sense channel is unused). 9 × 10 µF 1206 ceramics
+  on one side, 4 × 4.7 mF radial electrolytics on the other. `constants.C_OUT_NOMINAL`
+  already sums all 13 → 18.89 mF. Notebook 05 keeps their ESRs separate, which is the part
+  that matters at 100 kHz.
+- **17 × 10 µF 1206 are on the board in total** (`C13585`); only 9 are output bulk. Two more
+  are input (`constants.C_IN_NOMINAL` = 4 × 47 µF + 2 × 10 µF); the rest are local decoupling.
+- **Sense resistors:** `R22`+`R23` = 2 × 20 mΩ in parallel = the LM5176's 10 mΩ current
+  sense (notebook 07). `R5`, `R7` = 1 mΩ, the input and fan-rail INA226 shunts. `R33`–`R42`
+  = 10 mΩ, the ten per-fan shunts. `R8` and `R24` are spare/unused sense positions.
+- **The fitted FET is `BSC0902NSI`** (`C534382`), matching `constants.ACTIVE_FET_ID` — not
+  the `BSC0902NS` that the old parts table mis-listed as a 40 V part.
 
 ## Price columns (`inductors.csv`, `mosfets.csv`)
 

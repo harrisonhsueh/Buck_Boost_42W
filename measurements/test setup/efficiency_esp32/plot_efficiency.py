@@ -13,10 +13,12 @@ Efficiency definitions:
                                            current from the sum of the ten per-fan 10 mOhm shunts
   eta       = P_out / P_in
   eta_fan12 = (P_fan12 + P_b5in) / P_in    fan-rail current from the 1 mOhm fan12 shunt (cross-check)
-The per-fan sum is the output reference because the 1 mOhm fan12 shunt's reading shifted 2.6 %
-relative to it when a DMM was added to the 12 V path (2026-09-15), so a 1 mOhm calibration taken
-with a DMM inserted need not hold in normal operation. If the per-fan channels carry less than
-half the fan-rail current (e.g. a resistor wired straight to the rail), fan12 is used instead.
+The per-fan sum is the output reference because the 1 mOhm fan12 reading depends on how current
+is fed to its pads: on 2026-09-15 a DMM on one of the two parallel jumper sets ahead of the shunt
+shifted it 2.6 % (a calibration taken that way did not hold in normal runs), while a DMM on both
+sets matched normal operation. The 10 mOhm per-fan shunts were unaffected. If the per-fan channels
+carry less than half the fan-rail current (e.g. a resistor wired straight to the rail), fan12 is
+used instead.
 The ramp is split into up/down halves at the peak PWM row.
 
 Series resistance in the 12 V path: if the fan-rail voltage sags by more than 50 mOhm x
